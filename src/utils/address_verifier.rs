@@ -21,5 +21,4 @@ impl AddressVerifier {
         self.name_to_address.insert(name.to_string(), address);
         self.address_to_name.insert(address, name.to_string());
     }
-    pub fn add_string_address(&mut self, address: String, name: &str) {}
 }

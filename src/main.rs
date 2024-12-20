@@ -1,19 +1,25 @@
 use alloy::{
     dyn_abi::SolType,
     hex::{self, ToHexExt},
-    primitives::{ruint::aliases::U256, Address},
+    primitives::{ruint::aliases::U256, Address, Selector},
     sol,
     sol_types::SolCall,
 };
 use chrono::DateTime;
 use serde::Deserialize;
 use std::{
-    fmt::{Debug, Display},
+    fmt::{Debug, Display, Formatter},
     fs,
 };
-use utils::address_verifier::AddressVerifier;
+use traits::{VerificationResult, Verifiers, Verify};
+use utils::{
+    address_verifier::AddressVerifier,
+    bytecode_verifier::{self, BytecodeVerifier},
+    selector_verifier::{self, SelectorVerifier},
+};
 
 mod elements;
+mod traits;
 mod utils;
 use elements::{deployed_addresses::DeployedAddresses, force_deployment::ForceDeployment};
 
@@ -24,6 +30,37 @@ struct Config {
     governance_stage1_calls: String,
     deployed_addresses: DeployedAddresses,
     contracts_config: ContractsConfig,
+}
+
+impl Config {
+    pub fn add_to_verifier(&self, address_verifier: &mut AddressVerifier) {
+        self.deployed_addresses.add_to_verifier(address_verifier);
+    }
+}
+
+impl Verify for Config {
+    fn verify(&self, verifiers: &Verifiers, result: &mut VerificationResult) -> anyhow::Result<()> {
+        result.print_info("== Config verification ==");
+
+        match verifiers.network_verifier.get_era_chain_id() {
+            Some(chain_id) => {
+                if self.era_chain_id == chain_id {
+                    result.report_ok("Chain id");
+                } else {
+                    result.report_error(&format!(
+                        "chain id mismatch: {} vs {} ",
+                        self.era_chain_id, chain_id
+                    ));
+                }
+            }
+            None => {
+                result.report_warn(&format!("Cannot check chain id - probably not connected",));
+            }
+        }
+        self.deployed_addresses.verify(verifiers, result)?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -329,6 +366,8 @@ pub fn display_l2_protocol_upgrade_tx(tx: &L2CanonicalTransaction) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+
     // Read the YAML file
     let yaml_content = fs::read_to_string("data/gateway-upgrade-ecosystem.toml")?;
 
@@ -336,16 +375,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config: Config = toml::from_str(&yaml_content)?;
 
     // Print the parsed configuration
-    println!("{:#?}", config);
+    //println!("{:#?}", config);
 
-    //Counter::setNumberCall::abi_decode(data, validate);
+    let mut verifiers = Verifiers::default();
 
-    let mut address_verifier = AddressVerifier::default();
+    let mut result = VerificationResult::default();
 
-    config
-        .deployed_addresses
-        .add_to_verifier(&mut address_verifier);
+    config.add_to_verifier(&mut verifiers.address_verifier);
 
+    let _ = config.verify(&verifiers, &mut result).unwrap();
+
+    println!("{}", result);
+    /*
     let aa =
         CallList::abi_decode_sequence(&hex::decode(config.governance_stage1_calls).unwrap(), false)
             .unwrap();
@@ -357,7 +398,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "{} {:?}",
             x.target,
-            address_verifier.reverse_lookup(&x.target)
+            verifiers.address_verifier.reverse_lookup(&x.target)
         );
         println!("{} ", x.value);
         println!(
@@ -375,7 +416,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     display_facets(&aa.diamondCut);
 
-    display_init_calldata(&aa.diamondCut);
+    display_init_calldata(&aa.diamondCut);*/
 
     Ok(())
 }
