@@ -11,6 +11,11 @@ use std::{
     fmt::{Debug, Display},
     fs,
 };
+use utils::address_verifier::AddressVerifier;
+
+mod elements;
+mod utils;
+use elements::{deployed_addresses::DeployedAddresses, force_deployment::ForceDeployment};
 
 #[derive(Debug, Deserialize)]
 struct Config {
@@ -19,23 +24,6 @@ struct Config {
     governance_stage1_calls: String,
     deployed_addresses: DeployedAddresses,
     contracts_config: ContractsConfig,
-}
-
-#[derive(Debug, Deserialize)]
-struct DeployedAddresses {
-    native_token_vault_addr: String,
-    validator_timelock_addr: String,
-    bridges: Bridges,
-    bridgehub: Bridgehub,
-}
-
-#[derive(Debug, Deserialize)]
-struct Bridges {
-    shared_bridge_proxy_addr: String,
-}
-#[derive(Debug, Deserialize)]
-struct Bridgehub {
-    ctm_deployment_tracker_proxy_addr: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -208,15 +196,6 @@ sol! {
     }
 
     #[derive(Debug)]
-    struct ForceDeployment {
-        bytes32 bytecodeHash;
-        address newAddress;
-        bool callConstructor;
-        uint256 value;
-        bytes input;
-    }
-
-    #[derive(Debug)]
     struct GatewayUpgradeEncodedInput {
         ForceDeployment[] forceDeployments;
         uint256 l2GatewayUpgradePosition;
@@ -237,26 +216,6 @@ pub fn address_eq(address: &Address, addr_string: &String) -> bool {
             .strip_prefix("0x")
             .unwrap_or(&addr_string)
             .to_ascii_lowercase()
-}
-
-impl DeployedAddresses {
-    pub fn reverse_lookup(&self, address: Address) -> Option<String> {
-        dbg!(address.encode_hex());
-        if address_eq(&address, &self.native_token_vault_addr) {
-            return Some("native_token_vault".to_string());
-        }
-        if address_eq(&address, &self.validator_timelock_addr) {
-            return Some("validator_timelock_addr".to_string());
-        }
-
-        if address_eq(&address, &self.bridges.shared_bridge_proxy_addr) {
-            return Some("shared_bridge_proxy".to_string());
-        }
-        if address_eq(&address, &self.bridgehub.ctm_deployment_tracker_proxy_addr) {
-            return Some("ctm_deployment_tracker".to_string());
-        }
-        None
-    }
 }
 
 pub fn selector_to_method_name(selector: String) -> Option<String> {
@@ -381,6 +340,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     //Counter::setNumberCall::abi_decode(data, validate);
 
+    let mut address_verifier = AddressVerifier::default();
+
+    config
+        .deployed_addresses
+        .add_to_verifier(&mut address_verifier);
+
     let aa =
         CallList::abi_decode_sequence(&hex::decode(config.governance_stage1_calls).unwrap(), false)
             .unwrap();
@@ -392,7 +357,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "{} {:?}",
             x.target,
-            config.deployed_addresses.reverse_lookup(x.target)
+            address_verifier.reverse_lookup(&x.target)
         );
         println!("{} ", x.value);
         println!(
