@@ -7,7 +7,10 @@ use alloy::{
 };
 use chrono::DateTime;
 use serde::Deserialize;
-use std::{fmt::Display, fs};
+use std::{
+    fmt::{Debug, Display},
+    fs,
+};
 
 #[derive(Debug, Deserialize)]
 struct Config {
@@ -43,6 +46,12 @@ struct ContractsConfig {
 
 struct UpgradeDeadline {
     pub deadline: U256,
+}
+
+impl From<U256> for UpgradeDeadline {
+    fn from(value: U256) -> Self {
+        Self { deadline: value }
+    }
 }
 
 impl Display for UpgradeDeadline {
@@ -119,9 +128,105 @@ sol! {
         Call[] elems;
     }
 
-    function setNewVersionUpgrade(((address,uint8,bool,bytes4[])[],address,bytes),uint256 oldProtocolVersion, uint256 oldProtocolVersionDeadline,uint256 newProtocolVersion) {
+    enum Action {
+        Add,
+        Replace,
+        Remove
+    }
+
+    struct FacetCut {
+        address facet;
+        Action action;
+        bool isFreezable;
+        bytes4[] selectors;
+    }
+
+
+    struct DiamondCutData {
+        FacetCut[] facetCuts;
+        address initAddress;
+        bytes initCalldata;
+    }
+
+    function setNewVersionUpgrade(DiamondCutData diamondCut,uint256 oldProtocolVersion, uint256 oldProtocolVersionDeadline,uint256 newProtocolVersion) {
 
     }
+
+    #[derive(Debug)]
+    struct VerifierParams {
+        bytes32 recursionNodeLevelVkHash;
+        bytes32 recursionLeafLevelVkHash;
+        bytes32 recursionCircuitsSetVksHash;
+    }
+
+    #[derive(Debug)]
+    struct L2CanonicalTransaction {
+        uint256 txType;
+        uint256 from;
+        uint256 to;
+        uint256 gasLimit;
+        uint256 gasPerPubdataByteLimit;
+        uint256 maxFeePerGas;
+        uint256 maxPriorityFeePerGas;
+        uint256 paymaster;
+        uint256 nonce;
+        uint256 value;
+        // In the future, we might want to add some
+        // new fields to the struct. The `txData` struct
+        // is to be passed to account and any changes to its structure
+        // would mean a breaking change to these accounts. To prevent this,
+        // we should keep some fields as "reserved"
+        // It is also recommended that their length is fixed, since
+        // it would allow easier proof integration (in case we will need
+        // some special circuit for preprocessing transactions)
+        uint256[4] reserved;
+        bytes data;
+        bytes signature;
+        uint256[] factoryDeps;
+        bytes paymasterInput;
+        // Reserved dynamic type for the future use-case. Using it should be avoided,
+        // But it is still here, just in case we want to enable some additional functionality
+        bytes reservedDynamic;
+    }
+
+    #[derive(Debug)]
+    struct ProposedUpgrade {
+        L2CanonicalTransaction l2ProtocolUpgradeTx;
+        bytes32 bootloaderHash;
+        bytes32 defaultAccountHash;
+        address verifier;
+        VerifierParams verifierParams;
+        bytes l1ContractsUpgradeCalldata;
+        bytes postUpgradeCalldata;
+        uint256 upgradeTimestamp;
+        uint256 newProtocolVersion;
+    }
+
+    #[derive(Debug)]
+    function upgrade(ProposedUpgrade calldata _proposedUpgrade) {
+
+    }
+
+    #[derive(Debug)]
+    struct ForceDeployment {
+        bytes32 bytecodeHash;
+        address newAddress;
+        bool callConstructor;
+        uint256 value;
+        bytes input;
+    }
+
+    #[derive(Debug)]
+    struct GatewayUpgradeEncodedInput {
+        ForceDeployment[] forceDeployments;
+        uint256 l2GatewayUpgradePosition;
+        bytes fixedForceDeploymentsData;
+        address ctmDeployer;
+        address oldValidatorTimelock;
+        address newValidatorTimelock;
+        address wrappedBaseTokenStore;
+    }
+
 
 
 }
@@ -182,6 +287,88 @@ pub fn display_new_version_upgrade_call(data: &setNewVersionUpgradeCall) {
     );
 }
 
+impl Debug for Action {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Add => write!(f, "Add"),
+            Self::Replace => write!(f, "Replace"),
+            Self::Remove => write!(f, "Remove"),
+            Self::__Invalid => write!(f, "__Invalid"),
+        }
+    }
+}
+
+impl Debug for FacetCut {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FacetCut")
+            .field("facet", &self.facet)
+            .field("action", &self.action)
+            .field("isFreezable", &self.isFreezable)
+            .field("selectors", &self.selectors)
+            .finish()
+    }
+}
+
+impl Debug for DiamondCutData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DiamondCutData")
+            .field("facetCuts", &self.facetCuts)
+            .field("initAddress", &self.initAddress)
+            .field("initCalldata", &self.initCalldata)
+            .finish()
+    }
+}
+
+pub fn display_facets(diamond_cut: &DiamondCutData) {
+    for facet in diamond_cut.facetCuts.iter() {
+        println!("{:?}", facet);
+    }
+}
+
+pub fn display_init_calldata(diamond_cut: &DiamondCutData) {
+    // TODO: check - this should be 'gateway upgrade'.
+    println!("Init address: {:?}", diamond_cut.initAddress);
+
+    let upgrade = upgradeCall::abi_decode(&diamond_cut.initCalldata, true).unwrap();
+    println!("{:?}", upgrade._proposedUpgrade);
+
+    let proposed_upgrade = &upgrade._proposedUpgrade;
+
+    println!(
+        "Hashes: bootloader: {:?}  default account: {:?}",
+        proposed_upgrade.bootloaderHash, proposed_upgrade.defaultAccountHash
+    );
+    println!("Verifier adress: {:?}", proposed_upgrade.verifier);
+
+    // empty?? suspicious.
+    println!("Verifier params: {:?}", proposed_upgrade.verifierParams);
+
+    println!(
+        "New protocol version: {}",
+        ProtocolVersion::from(proposed_upgrade.newProtocolVersion)
+    );
+    // TODO: this should be 'sane'
+    println!(
+        "New timestamp: {}",
+        UpgradeDeadline::from(proposed_upgrade.newProtocolVersion)
+    );
+
+    println!("Upgrade tx: {:?}", proposed_upgrade.l2ProtocolUpgradeTx);
+    display_l2_protocol_upgrade_tx(&proposed_upgrade.l2ProtocolUpgradeTx);
+
+    let post_upgrade =
+        GatewayUpgradeEncodedInput::abi_decode(&proposed_upgrade.postUpgradeCalldata, true)
+            .unwrap();
+
+    println!("post upgrade: {:?}", post_upgrade);
+}
+
+pub fn display_l2_protocol_upgrade_tx(tx: &L2CanonicalTransaction) {
+    println!("L2 protocol upgrade to: {:?}", tx.to);
+    // TODO: analyze factory deps...
+    // Data is empty??
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Read the YAML file
     let yaml_content = fs::read_to_string("data/gateway-upgrade-ecosystem.toml")?;
@@ -218,9 +405,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let calldata = &aa.elems[4].data;
     let aa = setNewVersionUpgradeCall::abi_decode(calldata, true).unwrap();
 
-    println!("Call: {:?} ", aa._0);
-
+    println!("Call: {:?} ", aa.diamondCut);
     display_new_version_upgrade_call(&aa);
+
+    display_facets(&aa.diamondCut);
+
+    display_init_calldata(&aa.diamondCut);
 
     Ok(())
 }
