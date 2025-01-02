@@ -26,9 +26,7 @@ impl Verify for GovernanceStage1Calls {
 
         ];
 
-        self.calls
-            .verify(list_of_calls.into(), verifiers, result)
-            .unwrap();
+        self.calls.verify(list_of_calls.into(), verifiers, result)?;
 
         // Now analyse the setNewVersionUpgrade call
         // TODO

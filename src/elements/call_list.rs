@@ -31,13 +31,19 @@ impl CallList {
     ) -> anyhow::Result<()> {
         let mut elems = std::collections::VecDeque::from(self.elems.clone());
 
+        let mut errors = 0;
+
         for (target, method_name) in &list_of_calls {
             match expect_simple_call(verifiers, elems.pop_front(), target, method_name) {
                 Ok(msg) => result.report_ok(&msg),
-                Err(msg) => result.report_error(&msg),
+                Err(msg) => {
+                    result.report_error(&msg);
+                    errors += 1;
+                }
             }
         }
         if elems.len() != 0 {
+            errors += 1;
             result.report_error(&format!(
                 "Too many calls: expected {} got {}.",
                 list_of_calls.len(),
@@ -45,7 +51,11 @@ impl CallList {
             ));
         }
 
-        Ok(())
+        if errors > 0 {
+            anyhow::bail!("{} errors", errors)
+        } else {
+            Ok(())
+        }
     }
 }
 

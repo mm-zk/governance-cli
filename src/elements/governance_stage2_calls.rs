@@ -60,9 +60,7 @@ impl Verify for GovernanceStage2Calls {
             ),
         ];
 
-        self.calls
-            .verify(list_of_calls.into(), verifiers, result)
-            .unwrap();
+        self.calls.verify(list_of_calls.into(), verifiers, result)?;
 
         Ok(())
     }
