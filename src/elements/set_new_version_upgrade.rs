@@ -125,8 +125,9 @@ impl ProposedUpgrade {
             .bytecode_hash_to_file(&self.bootloaderHash);
         match bootloader {
             Some(file) => {
-                if file != "Bootloader" {
-                    result.report_error("Invalid bootloader hash");
+                // That's how bootloader is called in the SystemContractHashes file.
+                if file != "proved_batch" {
+                    result.report_error(&format!("Invalid bootloader hash - got {}", file));
                     errors += 1;
                 }
             }
@@ -143,8 +144,8 @@ impl ProposedUpgrade {
             .bytecode_hash_to_file(&self.defaultAccountHash);
         match default_account {
             Some(file) => {
-                if file != "Default Account" {
-                    result.report_error("Invalid default AA hash");
+                if file != "DefaultAccount" {
+                    result.report_error(&format!("Invalid default AA hash - got {}", file));
                     errors += 1;
                 }
             }

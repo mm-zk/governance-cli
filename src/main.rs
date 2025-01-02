@@ -95,7 +95,8 @@ pub fn address_eq(address: &Address, addr_string: &String) -> bool {
             .to_ascii_lowercase()
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     // Read the YAML file
@@ -105,6 +106,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config: Config = toml::from_str(&yaml_content)?;
 
     let mut verifiers = Verifiers::default();
+
+    verifiers
+        .bytecode_verifier
+        .init_from_github("3e2dad0d96ff8ca21e3fb609d2123b5ace37f573")
+        .await;
 
     let mut result = VerificationResult::default();
 
