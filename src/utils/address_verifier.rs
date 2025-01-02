@@ -1,8 +1,10 @@
 use alloy::primitives::{map::HashMap, Address};
 
-enum FixedAddresses {
+pub enum FixedAddresses {
     Bootloader = 0x8001,
     NonceHolder = 0x8003,
+    Deployer = 0x8006,
+    ForceDeployer = 0x8007,
 }
 
 #[derive(Default)]
@@ -14,6 +16,13 @@ pub struct AddressVerifier {
 impl AddressVerifier {
     pub fn reverse_lookup(&self, address: &Address) -> Option<&String> {
         self.address_to_name.get(address)
+    }
+
+    pub fn name_or_unknown(&self, address: &Address) -> String {
+        match self.address_to_name.get(address) {
+            Some(name) => name.clone(),
+            None => format!("Unknown {}", address),
+        }
     }
 
     pub fn add_address(&mut self, address: Address, name: &str) {

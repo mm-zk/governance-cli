@@ -24,6 +24,7 @@ mod utils;
 use elements::{
     call_list::CallList, deployed_addresses::DeployedAddresses, force_deployment::ForceDeployment,
     governance_stage1_calls::GovernanceStage1Calls, governance_stage2_calls::GovernanceStage2Calls,
+    protocol_version::ProtocolVersion, upgrade_deadline::UpgradeDeadline,
 };
 
 #[derive(Debug, Deserialize)]
@@ -90,63 +91,6 @@ impl Verify for Config {
 struct ContractsConfig {
     expected_rollup_l2_da_validator: String,
     priority_tx_max_gas_limit: u32,
-}
-
-struct UpgradeDeadline {
-    pub deadline: U256,
-}
-
-impl From<U256> for UpgradeDeadline {
-    fn from(value: U256) -> Self {
-        Self { deadline: value }
-    }
-}
-
-impl Display for UpgradeDeadline {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.deadline == U256::MAX {
-            write!(f, "INFINITY")
-        } else {
-            let seconds_since_epoch = self.deadline.try_into();
-
-            match seconds_since_epoch {
-                Ok(seconds) => {
-                    let datetime = DateTime::from_timestamp(seconds, 0).unwrap();
-                    write!(f, "UTC Time: {}", datetime.format("%Y-%m-%d %H:%M:%S"))
-                }
-                Err(_) => write!(f, "Huge, but not infinity.. strange"),
-            }
-        }
-    }
-}
-
-struct ProtocolVersion {
-    pub major: u64,
-    pub minor: u64,
-    pub patch: u64,
-}
-
-impl From<U256> for ProtocolVersion {
-    fn from(value: U256) -> Self {
-        let rem: U256 = (1u64 << 32).try_into().unwrap();
-        Self {
-            major: (value.checked_shr(64.try_into().unwrap()).unwrap())
-                .wrapping_rem(rem)
-                .try_into()
-                .unwrap(),
-            minor: (value.checked_shr(32.try_into().unwrap()).unwrap())
-                .wrapping_rem(rem)
-                .try_into()
-                .unwrap(),
-            patch: value.wrapping_rem(rem).try_into().unwrap(),
-        }
-    }
-}
-
-impl Display for ProtocolVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}.{}.{}", self.major, self.minor, self.patch)
-    }
 }
 
 sol! {
@@ -397,9 +341,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     config.add_to_verifier(&mut verifiers.address_verifier);
 
-    let _ = config.verify(&verifiers, &mut result).unwrap();
+    let r = config.verify(&verifiers, &mut result);
 
     println!("{}", result);
+    r.unwrap();
     /*
     let aa =
         CallList::abi_decode_sequence(&hex::decode(config.governance_stage1_calls).unwrap(), false)

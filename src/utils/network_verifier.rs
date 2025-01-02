@@ -9,7 +9,7 @@ impl NetworkVerifier {
         return None;
     }
 
-    pub fn get_bytecode_hash_at(&self, address: &Address) -> Option<FixedBytes<32>> {
+    pub fn get_bytecode_hash_at(&self, _address: &Address) -> Option<FixedBytes<32>> {
         // should return None if not connected.
         // if connected and address has no bytecode -shoudl return 0s.
         None

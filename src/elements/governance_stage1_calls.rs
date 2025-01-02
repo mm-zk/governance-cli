@@ -1,6 +1,14 @@
-use crate::traits::Verify;
+use alloy::sol_types::SolCall;
 
-use super::call_list::CallList;
+use crate::{
+    elements::{
+        protocol_version::ProtocolVersion, set_new_version_upgrade::upgradeCall,
+        upgrade_deadline::UpgradeDeadline,
+    },
+    traits::Verify,
+};
+
+use super::{call_list::CallList, set_new_version_upgrade::setNewVersionUpgradeCall};
 
 pub struct GovernanceStage1Calls {
     pub calls: CallList,
@@ -28,8 +36,30 @@ impl Verify for GovernanceStage1Calls {
 
         self.calls.verify(list_of_calls.into(), verifiers, result)?;
 
-        // Now analyse the setNewVersionUpgrade call
-        // TODO
+        // The only - non-trivial call is setNewVersionUpgrade.
+
+        let calldata = &self.calls.elems[4].data;
+        let data = setNewVersionUpgradeCall::abi_decode(calldata, true).unwrap();
+
+        //println!("Call: {:?} ", data.diamondCut);
+
+        let deadline = UpgradeDeadline {
+            deadline: data.oldProtocolVersionDeadline,
+        };
+        let old_protocol_version: ProtocolVersion = data.oldProtocolVersion.into();
+        let new_protocol_version: ProtocolVersion = data.newProtocolVersion.into();
+        result.print_info(&format!(
+            "Protocol versions: from: {} to: {} deadline: {}",
+            old_protocol_version, new_protocol_version, deadline
+        ));
+
+        let diamond_cut = data.diamondCut;
+
+        let upgrade = upgradeCall::abi_decode(&diamond_cut.initCalldata, true).unwrap();
+
+        upgrade
+            ._proposedUpgrade
+            .verify_transaction(verifiers, result)?;
 
         Ok(())
     }
