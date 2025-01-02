@@ -22,9 +22,8 @@ mod elements;
 mod traits;
 mod utils;
 use elements::{
-    deployed_addresses::DeployedAddresses,
-    force_deployment::ForceDeployment,
-    governance_stage1_calls::{CallList, GovernanceStage1Calls, GovernanceStage2Calls},
+    call_list::CallList, deployed_addresses::DeployedAddresses, force_deployment::ForceDeployment,
+    governance_stage1_calls::GovernanceStage1Calls, governance_stage2_calls::GovernanceStage2Calls,
 };
 
 #[derive(Debug, Deserialize)]

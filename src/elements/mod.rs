@@ -1,6 +1,8 @@
+pub mod call_list;
 pub mod deployed_addresses;
 pub mod force_deployment;
 pub mod governance_stage1_calls;
+pub mod governance_stage2_calls;
 
 enum IssueLevel {
     // All is good.
