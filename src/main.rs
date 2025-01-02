@@ -21,15 +21,27 @@ use utils::{
 mod elements;
 mod traits;
 mod utils;
-use elements::{deployed_addresses::DeployedAddresses, force_deployment::ForceDeployment};
+use elements::{
+    deployed_addresses::DeployedAddresses,
+    force_deployment::ForceDeployment,
+    governance_stage1_calls::{CallList, GovernanceStage1Calls, GovernanceStage2Calls},
+};
 
 #[derive(Debug, Deserialize)]
 struct Config {
     chain_upgrade_diamond_cut: String,
     era_chain_id: u32,
+    l1_chain_id: u32,
     governance_stage1_calls: String,
+    governance_stage2_calls: String,
+
     deployed_addresses: DeployedAddresses,
     contracts_config: ContractsConfig,
+    create2_factory_addr: String,
+    create2_factory_salt: String,
+    deployer_addr: String,
+
+    owner_address: String,
 }
 
 impl Config {
@@ -57,7 +69,19 @@ impl Verify for Config {
                 result.report_warn(&format!("Cannot check chain id - probably not connected",));
             }
         }
+        // Check that addresses actually contain correct bytecodes.
         self.deployed_addresses.verify(verifiers, result)?;
+
+        let stage1 = GovernanceStage1Calls {
+            calls: CallList::parse(&self.governance_stage1_calls),
+        };
+
+        stage1.verify(verifiers, result)?;
+
+        let stage2 = GovernanceStage2Calls {
+            calls: CallList::parse(&self.governance_stage2_calls),
+        };
+        stage2.verify(verifiers, result)?;
 
         Ok(())
     }
@@ -141,16 +165,7 @@ sol! {
             number++;
         }
 
-        function dummy(Call[] calls) {}
-    }
-    struct Call {
-        address target;
-        uint256 value;
-        bytes data;
-    }
 
-    struct CallList {
-        Call[] elems;
     }
 
     enum Action {
