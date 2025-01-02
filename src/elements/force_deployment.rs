@@ -2,8 +2,6 @@ use std::fmt::Display;
 
 use alloy::sol;
 
-use super::IssueLevel;
-
 sol! {
     #[derive(Debug)]
     struct ForceDeployment {
@@ -12,12 +10,6 @@ sol! {
         bool callConstructor;
         uint256 value;
         bytes input;
-    }
-}
-
-impl ForceDeployment {
-    pub fn quick_verify(&self) -> anyhow::Result<IssueLevel> {
-        Ok(IssueLevel::None("ok".to_string()))
     }
 }
 

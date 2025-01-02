@@ -35,8 +35,6 @@ sol! {
     function setNewVersionUpgrade(DiamondCutData diamondCut,uint256 oldProtocolVersion, uint256 oldProtocolVersionDeadline,uint256 newProtocolVersion) {
     }
 
-
-
     #[derive(Debug)]
     struct VerifierParams {
         bytes32 recursionNodeLevelVkHash;
@@ -158,13 +156,6 @@ impl ProposedUpgrade {
             }
         }
 
-        /*
-
-        VerifierParams verifierParams;
-        bytes l1ContractsUpgradeCalldata;
-        bytes postUpgradeCalldata;
-         */
-
         let verifier = verifiers
             .address_verifier
             .address_to_name
@@ -205,6 +196,10 @@ impl ProposedUpgrade {
         let post_upgrade_calldata = PostUpgradeCalldata::parse(&self.postUpgradeCalldata);
 
         post_upgrade_calldata.verify(verifiers, result)?;
+
+        if errors > 0 {
+            anyhow::bail!("{} errors", errors)
+        }
 
         Ok(())
     }
