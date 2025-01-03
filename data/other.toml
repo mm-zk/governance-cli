@@ -5,3 +5,7 @@ transparent_proxy_admin = "0xa4606C4c09a1f5DD1e6a763716D3191DDA537b22"
 bridgehub_proxy = "0xf4c557C9DB802bfabC9A1AD569E284f8edC93cAd"
 old_shared_bridge_proxy = "0xa5699243143b21E6863018971B2FCABCCC9997A9"
 legacy_erc20_bridge = "0xC6292c3ebbF6743EbDD2aC4BfF270210263996B1"
+aliased_governance = "0x0c8f593d03aa2d5073212b11a03dd22e9b865e09"
+
+shared_bridge_legacy_impl = "0x98B4D127491bFd273e370F40090A9d86ca5cb698"
+erc20_bridged_standard = "0xedCeB3C1D176DCf5BD228E924ac04536561FA92E"

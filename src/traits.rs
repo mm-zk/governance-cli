@@ -1,6 +1,8 @@
+use alloy::primitives::{Address, FixedBytes};
 use colored::Colorize;
 use serde::Deserialize;
 use std::fmt::Display;
+use std::panic::Location;
 
 use crate::utils::{
     address_verifier::AddressVerifier, bytecode_verifier::BytecodeVerifier,
@@ -60,6 +62,49 @@ impl VerificationResult {
     pub fn report_error(&mut self, error: &str) {
         self.errors += 1;
         println!("{} {}", "[ERROR]:".red(), error);
+    }
+
+    #[track_caller]
+    pub fn expect_address(&mut self, verifiers: &Verifiers, address: &Address, expected: &str) {
+        let address = verifiers.address_verifier.name_or_unknown(address);
+        if address != expected {
+            self.report_error(&format!(
+                "Expected address {}, got {} at {}",
+                expected,
+                address,
+                Location::caller()
+            ));
+        }
+    }
+
+    #[track_caller]
+    pub fn expect_bytecode(
+        &mut self,
+        verifiers: &Verifiers,
+        bytecode_hash: &FixedBytes<32>,
+        expected: &str,
+    ) {
+        match verifiers
+            .bytecode_verifier
+            .bytecode_hash_to_file(bytecode_hash)
+        {
+            Some(file_name) => {
+                if file_name != expected {
+                    self.report_error(&format!(
+                        "Expected bytecode {}, got {} at {}",
+                        expected,
+                        file_name,
+                        Location::caller()
+                    ));
+                }
+            }
+            None => {
+                self.report_warn(&format!(
+                    "Cannot verify bytecode hash: {} - expected {}",
+                    bytecode_hash, expected
+                ));
+            }
+        }
     }
 }
 

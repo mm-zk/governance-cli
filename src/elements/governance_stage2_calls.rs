@@ -1,8 +1,14 @@
 use crate::traits::{Verifiers, Verify};
-use alloy::{hex, primitives::U256, sol, sol_types::SolCall};
+use alloy::{
+    hex,
+    primitives::U256,
+    sol,
+    sol_types::{SolCall, SolValue},
+};
 
 use super::{
     call_list::{Call, CallList},
+    fixed_force_deployment::FixedForceDeploymentsData,
     protocol_version::ProtocolVersion,
 };
 
@@ -350,7 +356,10 @@ impl ChainCreationParams {
         }
 
         // TODO: implement diamond cut verification
-        // TODO: implement force deployments verification
+
+        let fixed_force_deployments_data =
+            FixedForceDeploymentsData::abi_decode(&self.forceDeploymentsData, true)?;
+        fixed_force_deployments_data.verify(verifiers, result)?;
 
         Ok(())
     }

@@ -52,6 +52,9 @@ struct OtherConfig {
     bridgehub_proxy: Address,
     old_shared_bridge_proxy: Address,
     legacy_erc20_bridge: Address,
+    aliased_governance: Address,
+    shared_bridge_legacy_impl: Address,
+    erc20_bridged_standard: Address,
 }
 
 impl OtherConfig {
@@ -63,6 +66,9 @@ impl OtherConfig {
         address_verifier.add_address(self.bridgehub_proxy, "bridgehub_proxy");
         address_verifier.add_address(self.old_shared_bridge_proxy, "old_shared_bridge_proxy");
         address_verifier.add_address(self.legacy_erc20_bridge, "legacy_erc20_bridge_proxy");
+        address_verifier.add_address(self.aliased_governance, "aliased_governance");
+        address_verifier.add_address(self.shared_bridge_legacy_impl, "shared_bridge_legacy_impl");
+        address_verifier.add_address(self.erc20_bridged_standard, "erc20_bridged_standard");
     }
 }
 

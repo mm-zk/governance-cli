@@ -1,6 +1,6 @@
 use alloy::{dyn_abi::SolType, primitives::Bytes, sol};
 
-use super::force_deployment::ForceDeployment;
+use super::{fixed_force_deployment::FixedForceDeploymentsData, force_deployment::ForceDeployment};
 
 sol! {
 
@@ -16,25 +16,7 @@ sol! {
         address wrappedBaseTokenStore;
     }
 
-    #[derive(Debug)]
-    struct FixedForceDeploymentsData {
-        uint256 l1ChainId;
-        uint256 eraChainId;
-        address l1AssetRouter;
-        bytes32 l2TokenProxyBytecodeHash;
-        address aliasedL1Governance;
-        uint256 maxNumberOfZKChains;
-        bytes32 bridgehubBytecodeHash;
-        bytes32 l2AssetRouterBytecodeHash;
-        bytes32 l2NtvBytecodeHash;
-        bytes32 messageRootBytecodeHash;
-        address l2SharedBridgeLegacyImpl;
-        address l2BridgedStandardERC20Impl;
-        // The forced beacon address. It is needed only for internal testing.
-        // MUST be equal to 0 in production.
-        // It will be the job of the governance to ensure that this value is set correctly.
-        address dangerousTestOnlyForcedBeacon;
-    }
+
 }
 
 pub struct PostUpgradeCalldata {
@@ -96,17 +78,6 @@ impl PostUpgradeCalldata {
 
         fixed_force_deployments_data.verify(verifiers, result)?;
 
-        Ok(())
-    }
-}
-
-impl FixedForceDeploymentsData {
-    pub fn verify(
-        &self,
-        _verifiers: &crate::traits::Verifiers,
-        _result: &mut crate::traits::VerificationResult,
-    ) -> anyhow::Result<()> {
-        // TODO: verify everything.
         Ok(())
     }
 }
