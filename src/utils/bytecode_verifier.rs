@@ -1,9 +1,8 @@
 use alloy::hex;
 use alloy::primitives::{map::HashMap, FixedBytes};
 use serde::{Deserialize, Serialize};
-use std::fs::{self, File};
-use std::io::Write;
-use std::path::Path;
+
+use super::get_contents_from_github;
 
 #[derive(Default)]
 pub struct BytecodeVerifier {
@@ -54,26 +53,11 @@ impl SystemContractHashes {
     }
 
     async fn get_contents(commit: &str) -> String {
-        let url = format!(
-            "https://raw.githubusercontent.com/matter-labs/era-contracts/{}/system-contracts/SystemContractsHashes.json",
-            commit
-        );
-
-        let cache_path = Path::new("cache");
-        fs::create_dir_all(cache_path).expect("Failed to create cache directory");
-
-        let cache_file_path = cache_path.join(format!("SystemContractHashes-{}.json", commit));
-
-        if !cache_file_path.exists() {
-            let response = reqwest::get(url).await.unwrap();
-
-            let mut file =
-                File::create(cache_file_path.clone()).expect("Failed to create cache file");
-            let data = response.bytes().await.unwrap();
-            file.write_all(&data).unwrap();
-        }
-
-        let data = fs::read_to_string(&cache_file_path).expect("Failed to read cache file");
-        return data;
+        get_contents_from_github(
+            commit,
+            "matter-labs/era-contracts",
+            "system-contracts/SystemContractsHashes.json",
+        )
+        .await
     }
 }

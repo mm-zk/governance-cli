@@ -1,7 +1,7 @@
 use alloy::{hex::ToHexExt, primitives::Address};
 use serde::Deserialize;
 use std::{fmt::Debug, fs};
-use traits::{VerificationResult, Verifiers, Verify};
+use traits::{GenesisConfig, VerificationResult, Verifiers, Verify};
 use utils::address_verifier::AddressVerifier;
 
 mod elements;
@@ -135,6 +135,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .bytecode_verifier
         .init_from_github("3e2dad0d96ff8ca21e3fb609d2123b5ace37f573")
         .await;
+
+    verifiers.genesis_config =
+        Some(GenesisConfig::init_from_github("69ea2c61ae0e84da982493427bf39b6e62632de5").await);
 
     let mut result = VerificationResult::default();
 

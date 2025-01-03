@@ -28,6 +28,8 @@ pub struct Bridgehub {
 pub struct StateTransition {
     pub verifier_addr: Address,
     pub state_transition_implementation_addr: Address,
+
+    pub genesis_upgrade_addr: Address,
 }
 
 impl DeployedAddresses {
@@ -61,6 +63,10 @@ impl DeployedAddresses {
         address_verifier.add_address(
             self.bridges.erc20_bridge_implementation_addr,
             "erc20_bridge_implementation_addr",
+        );
+        address_verifier.add_address(
+            self.state_transition.genesis_upgrade_addr,
+            "genesis_upgrade_addr",
         );
     }
 

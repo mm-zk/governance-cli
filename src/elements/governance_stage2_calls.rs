@@ -50,7 +50,7 @@ sol! {
     }
 
 
-
+    #[derive(Debug)]
     struct ChainCreationParams {
         address genesisUpgrade;
         bytes32 genesisBatchHash;
@@ -290,10 +290,68 @@ impl Verify for GovernanceStage2Calls {
 impl ChainCreationParams {
     pub fn verify(
         &self,
-        _verifiers: &crate::traits::Verifiers,
-        _result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
-        // TODO: implement
+        let genesis_upgrade_address = verifiers
+            .address_verifier
+            .name_or_unknown(&self.genesisUpgrade);
+        if genesis_upgrade_address != "genesis_upgrade_addr" {
+            result.report_error(&format!(
+                "Expected genesis upgrade address to be genesis_upgrade_addr, but got {}",
+                genesis_upgrade_address
+            ));
+        }
+
+        if self.genesisBatchHash.to_string()
+            != verifiers.genesis_config.as_ref().unwrap().genesis_root
+        {
+            result.report_error(&format!(
+                "Expected genesis batch hash to be {}, but got {}",
+                verifiers.genesis_config.as_ref().unwrap().genesis_root,
+                self.genesisBatchHash
+            ));
+        }
+
+        if self.genesisIndexRepeatedStorageChanges
+            != verifiers
+                .genesis_config
+                .as_ref()
+                .unwrap()
+                .genesis_rollup_leaf_index
+        {
+            result.report_error(&format!(
+                "Expected genesis index repeated storage changes to be {}, but got {}",
+                verifiers
+                    .genesis_config
+                    .as_ref()
+                    .unwrap()
+                    .genesis_rollup_leaf_index,
+                self.genesisIndexRepeatedStorageChanges
+            ));
+        }
+
+        if self.genesisBatchCommitment.to_string()
+            != verifiers
+                .genesis_config
+                .as_ref()
+                .unwrap()
+                .genesis_batch_commitment
+        {
+            result.report_error(&format!(
+                "Expected genesis batch commitment to be {}, but got {}",
+                verifiers
+                    .genesis_config
+                    .as_ref()
+                    .unwrap()
+                    .genesis_batch_commitment,
+                self.genesisBatchCommitment
+            ));
+        }
+
+        // TODO: implement diamond cut verification
+        // TODO: implement force deployments verification
+
         Ok(())
     }
 }

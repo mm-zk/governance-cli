@@ -1,9 +1,11 @@
 use colored::Colorize;
+use serde::Deserialize;
 use std::fmt::Display;
 
 use crate::utils::{
     address_verifier::AddressVerifier, bytecode_verifier::BytecodeVerifier,
-    network_verifier::NetworkVerifier, selector_verifier::SelectorVerifier,
+    get_contents_from_github, network_verifier::NetworkVerifier,
+    selector_verifier::SelectorVerifier,
 };
 
 #[derive(Default)]
@@ -12,6 +14,28 @@ pub struct Verifiers {
     pub address_verifier: AddressVerifier,
     pub bytecode_verifier: BytecodeVerifier,
     pub network_verifier: NetworkVerifier,
+    pub genesis_config: Option<GenesisConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GenesisConfig {
+    pub genesis_root: String,
+    pub genesis_rollup_leaf_index: u64,
+    pub genesis_batch_commitment: String,
+}
+
+impl GenesisConfig {
+    pub async fn init_from_github(commit: &str) -> Self {
+        println!("init from github {}", commit);
+        let data = get_contents_from_github(
+            commit,
+            "matter-labs/zksync-era",
+            "etc/env/file_based/genesis.yaml",
+        )
+        .await;
+
+        serde_yaml::from_str(&data).unwrap()
+    }
 }
 
 #[derive(Default)]
