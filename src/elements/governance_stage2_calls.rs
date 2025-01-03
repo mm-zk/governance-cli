@@ -1,9 +1,117 @@
-use crate::traits::Verify;
+use crate::traits::{Verifiers, Verify};
+use alloy::{hex, primitives::U256, sol, sol_types::SolCall};
 
-use super::call_list::CallList;
+use super::{
+    call_list::{Call, CallList},
+    protocol_version::ProtocolVersion,
+};
 
 pub struct GovernanceStage2Calls {
     pub calls: CallList,
+}
+
+sol! {
+    function upgrade(address proxy, address implementation) {
+    }
+
+    function upgradeAndCall(address proxy, address implementation, bytes data) {
+    }
+
+    function setValidatorTimelock(address addr) {
+    }
+
+    function singleAddressArgument(address addr) {
+
+    }
+    function setProtocolVersionDeadline(uint256 protocolVersion, uint256 newDeadline) {
+    }
+
+    #[derive(Debug)]
+    enum Action {
+        Add,
+        Replace,
+        Remove
+    }
+
+    #[derive(Debug)]
+    struct FacetCut {
+        address facet;
+        Action action;
+        bool isFreezable;
+        bytes4[] selectors;
+    }
+
+
+    #[derive(Debug)]
+    struct DiamondCutData {
+        FacetCut[] facetCuts;
+        address initAddress;
+        bytes initCalldata;
+    }
+
+
+
+    struct ChainCreationParams {
+        address genesisUpgrade;
+        bytes32 genesisBatchHash;
+        uint64 genesisIndexRepeatedStorageChanges;
+        bytes32 genesisBatchCommitment;
+        DiamondCutData diamondCut;
+        bytes forceDeploymentsData;
+    }
+
+    function setChainCreationParams(ChainCreationParams calldata _chainCreationParams)  {
+    }
+
+}
+
+impl GovernanceStage2Calls {
+    pub fn verify_upgrade_call(
+        &self,
+        verifiers: &Verifiers,
+        result: &mut crate::traits::VerificationResult,
+
+        call: &Call,
+        proxy_address: &str,
+        implementation_address: &str,
+        call_payload: Option<String>,
+    ) {
+        let data = call.data.clone();
+
+        let (proxy, implementation) = match call_payload {
+            Some(call_payload) => {
+                let decoded = upgradeAndCallCall::abi_decode(&data, true).unwrap();
+                if decoded.data != hex::decode(call_payload.clone()).unwrap() {
+                    result.report_error(&format!(
+                        "Expected upgrade call data to be {}, but got {}",
+                        call_payload, decoded.data
+                    ));
+                }
+                (decoded.proxy, decoded.implementation)
+            }
+            None => {
+                let decoded = upgradeCall::abi_decode(&data, true).unwrap();
+                (decoded.proxy, decoded.implementation)
+            }
+        };
+
+        let proxy = verifiers.address_verifier.name_or_unknown(&proxy);
+
+        let implementation = verifiers.address_verifier.name_or_unknown(&implementation);
+        if proxy != proxy_address {
+            result.report_error(&format!(
+                "Expected proxy address to be {}, but got {}",
+                proxy_address, proxy
+            ));
+        } else if implementation != implementation_address {
+            result.report_error(&format!(
+                "Expected implementation address to be {}, but got {}",
+                implementation_address, implementation
+            ));
+        } else {
+            result.report_ok(&format!("Upgrade call for {} to {}", proxy, implementation));
+        }
+    }
 }
 
 impl Verify for GovernanceStage2Calls {
@@ -62,6 +170,130 @@ impl Verify for GovernanceStage2Calls {
 
         self.calls.verify(list_of_calls.into(), verifiers, result)?;
 
+        self.verify_upgrade_call(
+            verifiers,
+            result,
+            &self.calls.elems[0],
+            "state_transition_manager",
+            "state_transition_implementation_addr",
+            None,
+        );
+
+        self.verify_upgrade_call(
+            verifiers,
+            result,
+            &self.calls.elems[1],
+            "bridgehub_proxy",
+            "bridgehub_implementation_addr",
+            Some(
+                verifiers
+                    .selector_verifier
+                    .compute_selector("initializeV2()"),
+            ),
+        );
+
+        self.verify_upgrade_call(
+            verifiers,
+            result,
+            &self.calls.elems[2],
+            "old_shared_bridge_proxy",
+            "l1_nullifier_implementation_addr",
+            None,
+        );
+
+        self.verify_upgrade_call(
+            verifiers,
+            result,
+            &self.calls.elems[3],
+            "legacy_erc20_bridge_proxy",
+            "erc20_bridge_implementation_addr",
+            None,
+        );
+
+        let decoded =
+            setChainCreationParamsCall::abi_decode(&self.calls.elems[4].data, true).unwrap();
+
+        decoded._chainCreationParams.verify(verifiers, result)?;
+
+        {
+            let decoded =
+                setValidatorTimelockCall::abi_decode(&self.calls.elems[5].data, true).unwrap();
+
+            let implementation = verifiers.address_verifier.name_or_unknown(&decoded.addr);
+            let implementation_address = "validator_timelock";
+            if implementation != implementation_address {
+                result.report_error(&format!(
+                    "Expected implementation address to be {}, but got {}",
+                    implementation_address, implementation
+                ));
+            }
+        }
+
+        {
+            let decoded =
+                singleAddressArgumentCall::abi_decode_raw(&self.calls.elems[7].data[4..], true)
+                    .unwrap();
+
+            let implementation = verifiers.address_verifier.name_or_unknown(&decoded.addr);
+            let implementation_address = "native_token_vault";
+            if implementation != implementation_address {
+                result.report_error(&format!(
+                    "Expected implementation address to be {}, but got {}",
+                    implementation_address, implementation
+                ));
+            }
+        }
+
+        {
+            let decoded =
+                singleAddressArgumentCall::abi_decode_raw(&self.calls.elems[8].data[4..], true)
+                    .unwrap();
+
+            let implementation = verifiers.address_verifier.name_or_unknown(&decoded.addr);
+            let implementation_address = "shared_bridge_proxy";
+            if implementation != implementation_address {
+                result.report_error(&format!(
+                    "Expected implementation address to be {}, but got {}",
+                    implementation_address, implementation
+                ));
+            }
+        }
+
+        {
+            let decoded = setProtocolVersionDeadlineCall::abi_decode_raw(
+                &self.calls.elems[9].data[4..],
+                true,
+            )
+            .unwrap();
+
+            let pv = ProtocolVersion::from(decoded.protocolVersion);
+            const EXPECTED_OLD_PV: &str = "v0.25.0";
+            if pv.to_string() != EXPECTED_OLD_PV {
+                result.report_warn(&format!(
+                    "Invalid protocol version: {} - expected {}",
+                    pv, EXPECTED_OLD_PV
+                ));
+            }
+
+            if decoded.newDeadline != U256::ZERO {
+                result.report_error(&format!(
+                    "Expected deadline to be 0, but got {}",
+                    decoded.newDeadline
+                ));
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl ChainCreationParams {
+    pub fn verify(
+        &self,
+        _verifiers: &crate::traits::Verifiers,
+        _result: &mut crate::traits::VerificationResult,
+    ) -> anyhow::Result<()> {
+        // TODO: implement
         Ok(())
     }
 }

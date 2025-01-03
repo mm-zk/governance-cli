@@ -51,6 +51,7 @@ struct OtherConfig {
     transparent_proxy_admin: Address,
     bridgehub_proxy: Address,
     old_shared_bridge_proxy: Address,
+    legacy_erc20_bridge: Address,
 }
 
 impl OtherConfig {
@@ -61,6 +62,7 @@ impl OtherConfig {
         address_verifier.add_address(self.transparent_proxy_admin, "transparent_proxy_admin");
         address_verifier.add_address(self.bridgehub_proxy, "bridgehub_proxy");
         address_verifier.add_address(self.old_shared_bridge_proxy, "old_shared_bridge_proxy");
+        address_verifier.add_address(self.legacy_erc20_bridge, "legacy_erc20_bridge_proxy");
     }
 }
 

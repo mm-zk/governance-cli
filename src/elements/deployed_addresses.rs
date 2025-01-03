@@ -15,15 +15,19 @@ pub struct DeployedAddresses {
 #[derive(Debug, Deserialize)]
 pub struct Bridges {
     shared_bridge_proxy_addr: Address,
+    pub l1_nullifier_implementation_addr: Address,
+    pub erc20_bridge_implementation_addr: Address,
 }
 #[derive(Debug, Deserialize)]
 pub struct Bridgehub {
     ctm_deployment_tracker_proxy_addr: Address,
+    bridgehub_implementation_addr: Address,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct StateTransition {
     pub verifier_addr: Address,
+    pub state_transition_implementation_addr: Address,
 }
 
 impl DeployedAddresses {
@@ -35,11 +39,28 @@ impl DeployedAddresses {
             self.bridgehub.ctm_deployment_tracker_proxy_addr,
             "ctm_deployment_tracker",
         );
+        address_verifier.add_address(
+            self.bridgehub.bridgehub_implementation_addr,
+            "bridgehub_implementation_addr",
+        );
         address_verifier.add_address(self.state_transition.verifier_addr, "verifier");
 
         address_verifier.add_address(
             self.l2_wrapped_base_token_store_addr,
             "l2_wrapped_base_token_store",
+        );
+
+        address_verifier.add_address(
+            self.state_transition.state_transition_implementation_addr,
+            "state_transition_implementation_addr",
+        );
+        address_verifier.add_address(
+            self.bridges.l1_nullifier_implementation_addr,
+            "l1_nullifier_implementation_addr",
+        );
+        address_verifier.add_address(
+            self.bridges.erc20_bridge_implementation_addr,
+            "erc20_bridge_implementation_addr",
         );
     }
 
