@@ -8,7 +8,6 @@ use std::path::Path;
 #[derive(Default)]
 pub struct BytecodeVerifier {
     pub bytecode_hash_to_file: HashMap<FixedBytes<32>, String>,
-    //pub contract_hashes: Option<SystemContractHashes>,
 }
 
 impl BytecodeVerifier {

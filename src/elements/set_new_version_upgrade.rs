@@ -169,25 +169,37 @@ impl ProposedUpgrade {
             errors += 1;
         }
 
-        // FIXME: protocol version should be v0.26.0
         let pv = ProtocolVersion::from(self.newProtocolVersion).to_string();
-        if pv != "v0.27.0" {
-            result.report_error(&format!(
-                "Invalid protocol version: {} - expected v0.27.0",
-                pv
+
+        pub const EXPECTED_PROTOCOL_VERSION: &str = "v0.26.0";
+        if pv != EXPECTED_PROTOCOL_VERSION {
+            result.report_warn(&format!(
+                "Invalid protocol version: {} - expected {}",
+                pv, EXPECTED_PROTOCOL_VERSION
             ));
-            errors += 1;
         }
 
-        let timestamp = UpgradeDeadline::from(self.upgradeTimestamp).to_string();
+        let upgrade_deadline = UpgradeDeadline::from(self.upgradeTimestamp);
+
         // TODO: should we check something here?
-        result.print_info(&format!("Upgrade timestamp: {}", timestamp));
+        result.print_info(&format!("Upgrade timestamp: {}", upgrade_deadline));
+
+        if !upgrade_deadline.deadline_within_day_range(0, 14) {
+            result.report_warn("Upgrade deadline is not within 0 - 14 days from now");
+        }
 
         if errors > 0 {
             anyhow::bail!("{} errors", errors)
         }
 
-        // TOOD: check verifier params.
+        // Verifier params should be zero - as everything is hardcoded within the verifier contract itself.
+        if self.verifierParams.recursionNodeLevelVkHash != [0u8; 32]
+            || self.verifierParams.recursionLeafLevelVkHash != [0u8; 32]
+            || self.verifierParams.recursionCircuitsSetVksHash != [0u8; 32]
+        {
+            result.report_error("Verifier params must be empty.");
+            errors += 1;
+        }
 
         if self.l1ContractsUpgradeCalldata.len() > 0 {
             result.report_error("l1ContractsUpgradeCalldata is not empty");

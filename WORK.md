@@ -3,3 +3,9 @@
 [ ] - and something to verify addresses.
 
 [ ] - add green, yellow, red marks - similar concept to rust warnings.
+
+
+[ ] - somehow, get the other contract bytecode hashes too (maybe separate repo for now??)
+
+[] - figure out all those unknown addresses.
+
