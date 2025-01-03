@@ -65,7 +65,12 @@ impl VerificationResult {
     }
 
     #[track_caller]
-    pub fn expect_address(&mut self, verifiers: &Verifiers, address: &Address, expected: &str) {
+    pub fn expect_address(
+        &mut self,
+        verifiers: &Verifiers,
+        address: &Address,
+        expected: &str,
+    ) -> bool {
         let address = verifiers.address_verifier.name_or_unknown(address);
         if address != expected {
             self.report_error(&format!(
@@ -74,6 +79,9 @@ impl VerificationResult {
                 address,
                 Location::caller()
             ));
+            false
+        } else {
+            true
         }
     }
 

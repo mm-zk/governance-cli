@@ -101,21 +101,10 @@ impl GovernanceStage2Calls {
             }
         };
 
-        let proxy = verifiers.address_verifier.name_or_unknown(&proxy);
-
-        let implementation = verifiers.address_verifier.name_or_unknown(&implementation);
-        if proxy != proxy_address {
-            result.report_error(&format!(
-                "Expected proxy address to be {}, but got {}",
-                proxy_address, proxy
-            ));
-        } else if implementation != implementation_address {
-            result.report_error(&format!(
-                "Expected implementation address to be {}, but got {}",
-                implementation_address, implementation
-            ));
-        } else {
-            result.report_ok(&format!("Upgrade call for {} to {}", proxy, implementation));
+        if result.expect_address(verifiers, &proxy, proxy_address) {
+            if result.expect_address(verifiers, &implementation, implementation_address) {
+                result.report_ok(&format!("Upgrade call for {} to {}", proxy, implementation));
+            }
         }
     }
 }
@@ -225,14 +214,7 @@ impl Verify for GovernanceStage2Calls {
             let decoded =
                 setValidatorTimelockCall::abi_decode(&self.calls.elems[5].data, true).unwrap();
 
-            let implementation = verifiers.address_verifier.name_or_unknown(&decoded.addr);
-            let implementation_address = "validator_timelock";
-            if implementation != implementation_address {
-                result.report_error(&format!(
-                    "Expected implementation address to be {}, but got {}",
-                    implementation_address, implementation
-                ));
-            }
+            result.expect_address(verifiers, &decoded.addr, "validator_timelock");
         }
 
         {
@@ -240,14 +222,7 @@ impl Verify for GovernanceStage2Calls {
                 singleAddressArgumentCall::abi_decode_raw(&self.calls.elems[7].data[4..], true)
                     .unwrap();
 
-            let implementation = verifiers.address_verifier.name_or_unknown(&decoded.addr);
-            let implementation_address = "native_token_vault";
-            if implementation != implementation_address {
-                result.report_error(&format!(
-                    "Expected implementation address to be {}, but got {}",
-                    implementation_address, implementation
-                ));
-            }
+            result.expect_address(verifiers, &decoded.addr, "native_token_vault");
         }
 
         {
@@ -255,14 +230,7 @@ impl Verify for GovernanceStage2Calls {
                 singleAddressArgumentCall::abi_decode_raw(&self.calls.elems[8].data[4..], true)
                     .unwrap();
 
-            let implementation = verifiers.address_verifier.name_or_unknown(&decoded.addr);
-            let implementation_address = "shared_bridge_proxy";
-            if implementation != implementation_address {
-                result.report_error(&format!(
-                    "Expected implementation address to be {}, but got {}",
-                    implementation_address, implementation
-                ));
-            }
+            result.expect_address(verifiers, &decoded.addr, "shared_bridge_proxy");
         }
 
         {
