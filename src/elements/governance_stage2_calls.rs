@@ -15,47 +15,47 @@ impl Verify for GovernanceStage2Calls {
         result.print_info("== Gov stage 2 calls ===");
         let list_of_calls = [
             (
-                "Unknown: 0xa4606C4c09a1f5DD1e6a763716D3191DDA537b22",
+                "transparent_proxy_admin",
                 "upgrade(address,address)",
             ),
             (
-                "Unknown: 0xa4606C4c09a1f5DD1e6a763716D3191DDA537b22",
+                "transparent_proxy_admin",
                 "upgradeAndCall(address,address,bytes)",
             ),
             (
-                "Unknown: 0xa4606C4c09a1f5DD1e6a763716D3191DDA537b22",
+                "transparent_proxy_admin",
                 "upgrade(address,address)",
             ),
             (
-                "Unknown: 0xa4606C4c09a1f5DD1e6a763716D3191DDA537b22",
+                "transparent_proxy_admin",
                 "upgrade(address,address)",
             ),
             (
-                "Unknown: 0x40cb63ECd4e207A5ac8B8eE38e20Fa4094a8c0bc",
+                "state_transition_manager",
                 "setChainCreationParams((address,bytes32,uint64,bytes32,((address,uint8,bool,bytes4[])[],address,bytes),bytes))",
             ),
             (
-                "Unknown: 0x40cb63ECd4e207A5ac8B8eE38e20Fa4094a8c0bc",
+                "state_transition_manager",
                 "setValidatorTimelock(address)",
             ),
             (
-                "Unknown: 0xf4c557C9DB802bfabC9A1AD569E284f8edC93cAd",
+                "bridgehub_proxy",
                 "setAddresses(address,address,address)",
             ),
             (
-                "Unknown: 0xa5699243143b21E6863018971B2FCABCCC9997A9",
+                "old_shared_bridge_proxy",
                 "setL1NativeTokenVault(address)",
             ),
             (
-                "Unknown: 0xa5699243143b21E6863018971B2FCABCCC9997A9",
+                "old_shared_bridge_proxy",
                 "setL1AssetRouter(address)",
             ),
             (
-                "Unknown: 0x40cb63ECd4e207A5ac8B8eE38e20Fa4094a8c0bc",
+                "state_transition_manager",
                 "setProtocolVersionDeadline(uint256,uint256)",
             ),
             (
-                "Unknown: 0xa25E32103B151F39352b7e9af1700B7a4743931c",
+                "upgrade_timer",
                 "checkDeadline()",
             ),
         ];

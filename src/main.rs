@@ -42,6 +42,28 @@ impl Config {
     }
 }
 
+// Temporary struct to hold the other config data that is missing from the original one
+#[derive(Debug, Deserialize)]
+struct OtherConfig {
+    rollup_da_manager: Address,
+    state_transition_manager: Address,
+    upgrade_timer: Address,
+    transparent_proxy_admin: Address,
+    bridgehub_proxy: Address,
+    old_shared_bridge_proxy: Address,
+}
+
+impl OtherConfig {
+    pub fn add_to_verifier(&self, address_verifier: &mut AddressVerifier) {
+        address_verifier.add_address(self.rollup_da_manager, "rollup_da_manager");
+        address_verifier.add_address(self.state_transition_manager, "state_transition_manager");
+        address_verifier.add_address(self.upgrade_timer, "upgrade_timer");
+        address_verifier.add_address(self.transparent_proxy_admin, "transparent_proxy_admin");
+        address_verifier.add_address(self.bridgehub_proxy, "bridgehub_proxy");
+        address_verifier.add_address(self.old_shared_bridge_proxy, "old_shared_bridge_proxy");
+    }
+}
+
 impl Verify for Config {
     fn verify(&self, verifiers: &Verifiers, result: &mut VerificationResult) -> anyhow::Result<()> {
         result.print_info("== Config verification ==");
@@ -115,6 +137,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut result = VerificationResult::default();
 
     config.add_to_verifier(&mut verifiers.address_verifier);
+
+    let other_yaml_content = fs::read_to_string("data/other.toml")?;
+    let other_config: OtherConfig = toml::from_str(&other_yaml_content)?;
+    other_config.add_to_verifier(&mut verifiers.address_verifier);
 
     let r = config.verify(&verifiers, &mut result);
 

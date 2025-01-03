@@ -26,11 +26,10 @@ impl Verify for GovernanceStage1Calls {
             ("validator_timelock", "acceptOwnership()"),
             ("shared_bridge_proxy", "acceptOwnership()"),
             ("ctm_deployment_tracker", "acceptOwnership()"),
-            ("Unknown: 0x4b321AA7b13Da7A40737333085cC6d0aAC355DaB",
-            "acceptOwnership()"),
-            ("Unknown: 0x40cb63ECd4e207A5ac8B8eE38e20Fa4094a8c0bc",
+            ("rollup_da_manager", "acceptOwnership()"),
+            ("state_transition_manager",
             "setNewVersionUpgrade(((address,uint8,bool,bytes4[])[],address,bytes),uint256,uint256,uint256)"),
-            ("Unknown: 0xa25E32103B151F39352b7e9af1700B7a4743931c", "startTimer()"),
+            ("upgrade_timer", "startTimer()"),
 
         ];
 
@@ -52,6 +51,12 @@ impl Verify for GovernanceStage1Calls {
             "Protocol versions: from: {} to: {} deadline: {}",
             old_protocol_version, new_protocol_version, deadline
         ));
+        if !deadline.deadline_within_day_range(3, 14) {
+            result.report_warn(&format!(
+                "Expected upgrade deadline to be within 3 - 14 days from now, but it is {}",
+                deadline
+            ));
+        }
 
         let diamond_cut = data.diamondCut;
 
