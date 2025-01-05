@@ -1,4 +1,4 @@
-use alloy::primitives::{Address, FixedBytes};
+use alloy::primitives::{keccak256, Address, FixedBytes};
 use alloy::providers::{Provider, ProviderBuilder};
 
 #[derive(Default)]
@@ -26,9 +26,19 @@ impl NetworkVerifier {
         }
     }
 
-    pub fn get_bytecode_hash_at(&self, _address: &Address) -> Option<FixedBytes<32>> {
-        // should return None if not connected.
-        // if connected and address has no bytecode -shoudl return 0s.
-        None
+    pub async fn get_bytecode_hash_at(&self, address: &Address) -> Option<FixedBytes<32>> {
+        if let Some(network) = self.network_rpc.as_ref() {
+            let provider = ProviderBuilder::new().on_http(network.parse().unwrap());
+            let code = provider.get_code_at(address.clone()).await.unwrap();
+            if code.len() == 0 {
+                // if connected and address has no bytecode - should return 0s.
+                Some(FixedBytes::ZERO)
+            } else {
+                Some(keccak256(&code))
+            }
+        } else {
+            // should return None if not connected.
+            None
+        }
     }
 }

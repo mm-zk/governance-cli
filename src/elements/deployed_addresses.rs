@@ -1,5 +1,7 @@
+use std::panic::Location;
+
 use crate::{traits::Verify, utils::address_verifier::AddressVerifier};
-use alloy::primitives::Address;
+use alloy::primitives::{Address, FixedBytes};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -70,35 +72,60 @@ impl DeployedAddresses {
         );
     }
 
-    fn verify_single_address(
+    //#[track_caller]
+    async fn verify_single_address(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
         address: &Address,
         expected_file: &str,
     ) -> anyhow::Result<()> {
-        let bytecode_hash = verifiers.network_verifier.get_bytecode_hash_at(address);
+        let bytecode_hash = verifiers
+            .network_verifier
+            .get_bytecode_hash_at(address)
+            .await;
         match bytecode_hash {
             Some(bytecode_hash) => {
-                let original_file = verifiers
-                    .bytecode_verifier
-                    .bytecode_hash_to_file(&bytecode_hash);
-                match original_file {
-                    Some(file) => {
-                        if file == expected_file {
-                            result.report_ok(expected_file);
-                        } else {
-                            result.report_error(&format!(
-                                "{} has bytecode from wrong file: {}",
-                                expected_file, file
-                            ));
+                println!(
+                    "Checking bytecode for {} at {} l1 hash: {}",
+                    expected_file, address, bytecode_hash
+                );
+                if bytecode_hash == FixedBytes::ZERO {
+                    result.report_warn(&format!(
+                        "Bytecode hash at {} is zero - expected code {} at {}",
+                        address,
+                        expected_file,
+                        Location::caller()
+                    ));
+                    return Ok(());
+                } else {
+                    let original_file = verifiers
+                        .bytecode_verifier
+                        .bytecode_hash_to_file(&bytecode_hash);
+                    match original_file {
+                        Some(file) => {
+                            if file == expected_file {
+                                result.report_ok(expected_file);
+                            } else {
+                                result.report_error(&format!(
+                                    "{} has bytecode from wrong file: {} at {}",
+                                    expected_file,
+                                    file,
+                                    Location::caller()
+                                ));
+                            }
                         }
+                        None => result.report_warn(&format!(
+                            "Unknown bytecode hash at address {} - {} - at {}",
+                            address,
+                            bytecode_hash,
+                            Location::caller()
+                        )),
                     }
-                    None => result.report_warn("Unknown bytecode hash"),
                 }
             }
             None => result.report_warn(&format!(
-                "Cannot check bytecode for {} at {}",
+                "No RPC connection - Cannot check bytecode for {} at {}",
                 expected_file, address
             )),
         };
@@ -117,27 +144,31 @@ impl Verify for DeployedAddresses {
             result,
             &self.native_token_vault_addr,
             "NativeTokenVault.sol",
-        )?;
+        )
+        .await?;
 
         self.verify_single_address(
             verifiers,
             result,
             &self.validator_timelock_addr,
-            "ValidatorTimelock.sol",
-        )?;
+            "ValidatorTimelock",
+        )
+        .await?;
 
         self.verify_single_address(
             verifiers,
             result,
             &self.bridges.shared_bridge_proxy_addr,
             "SharedBridgeProxy.sol",
-        )?;
+        )
+        .await?;
         self.verify_single_address(
             verifiers,
             result,
             &self.bridgehub.ctm_deployment_tracker_proxy_addr,
             "CtmDeploymentTrackerProxy.sol",
-        )?;
+        )
+        .await?;
 
         // TODO: verify that each address has actually something deployed.
         result.report_ok("deployed addresses");

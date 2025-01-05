@@ -153,7 +153,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     verifiers
         .bytecode_verifier
-        .init_from_github("c632483a56c2f65956abb1539cfde32ba057a003")
+        .init_from_github("e0ece9a1c81846dc2efbe61013204fcdfb7d3773")
         .await;
 
     verifiers.genesis_config =
