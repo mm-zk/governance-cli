@@ -130,16 +130,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     // Read the YAML file
-    let yaml_content = fs::read_to_string("data/gateway-upgrade-ecosystem.toml")?;
+    let yaml_content = fs::read_to_string("data/349ba7cb/gateway-upgrade-ecosystem.toml")?;
 
     // Parse the YAML content
     let config: Config = toml::from_str(&yaml_content)?;
 
     let mut verifiers = Verifiers::default();
 
+    /*verifiers
+    .bytecode_verifier
+    .init_from_github("3e2dad0d96ff8ca21e3fb609d2123b5ace37f573")
+    .await;*/
+
+    /*verifiers
+    .bytecode_verifier
+    .init_from_github("7aab7a47857c0bac8eac5abb8ae695a63be1c3df")
+    .await;*/
+
     verifiers
         .bytecode_verifier
-        .init_from_github("3e2dad0d96ff8ca21e3fb609d2123b5ace37f573")
+        .init_from_github("c632483a56c2f65956abb1539cfde32ba057a003")
         .await;
 
     verifiers.genesis_config =
@@ -149,7 +159,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     config.add_to_verifier(&mut verifiers.address_verifier);
 
-    let other_yaml_content = fs::read_to_string("data/other.toml")?;
+    let other_yaml_content = fs::read_to_string("data/349ba7cb/other.toml")?;
     let other_config: OtherConfig = toml::from_str(&other_yaml_content)?;
     other_config.add_to_verifier(&mut verifiers.address_verifier);
 

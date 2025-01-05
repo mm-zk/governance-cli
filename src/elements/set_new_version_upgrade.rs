@@ -181,7 +181,6 @@ impl ProposedUpgrade {
 
         let upgrade_deadline = UpgradeDeadline::from(self.upgradeTimestamp);
 
-        // TODO: should we check something here?
         result.print_info(&format!("Upgrade timestamp: {}", upgrade_deadline));
 
         if !upgrade_deadline.deadline_within_day_range(0, 14) {

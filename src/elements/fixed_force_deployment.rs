@@ -60,26 +60,18 @@ impl FixedForceDeploymentsData {
         }
 
         result.expect_address(verifiers, &self.l1AssetRouter, "shared_bridge_proxy");
-        result.expect_bytecode(
-            verifiers,
-            &self.l2TokenProxyBytecodeHash,
-            "l2TokenProxyBytecode",
-        );
+        result.expect_bytecode(verifiers, &self.l2TokenProxyBytecodeHash, "BeaconProxy");
         result.expect_address(verifiers, &self.aliasedL1Governance, "aliased_governance");
 
         if self.maxNumberOfZKChains != U256::from(100) {
             result.report_error("maxNumberOfZKChains must be 100");
         }
 
-        result.expect_bytecode(verifiers, &self.bridgehubBytecodeHash, "Bridgehub.sol");
-        result.expect_bytecode(
-            verifiers,
-            &self.l2AssetRouterBytecodeHash,
-            "L2AssetRouter.sol",
-        );
-        result.expect_bytecode(verifiers, &self.l2NtvBytecodeHash, "L2NTV.sol");
+        result.expect_bytecode(verifiers, &self.bridgehubBytecodeHash, "Bridgehub");
+        result.expect_bytecode(verifiers, &self.l2AssetRouterBytecodeHash, "L2AssetRouter");
+        result.expect_bytecode(verifiers, &self.l2NtvBytecodeHash, "L2NativeTokenVault");
 
-        result.expect_bytecode(verifiers, &self.messageRootBytecodeHash, "MessageRoot.sol");
+        result.expect_bytecode(verifiers, &self.messageRootBytecodeHash, "MessageRoot");
 
         result.expect_address(
             verifiers,
