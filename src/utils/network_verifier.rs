@@ -1,4 +1,4 @@
-use alloy::primitives::{keccak256, Address, FixedBytes};
+use alloy::primitives::{keccak256, Address, FixedBytes, U256};
 use alloy::providers::{Provider, ProviderBuilder};
 
 #[derive(Default)]
@@ -38,6 +38,25 @@ impl NetworkVerifier {
             }
         } else {
             // should return None if not connected.
+            None
+        }
+    }
+
+    pub async fn storage_at(
+        &self,
+        address: &Address,
+        key: &FixedBytes<32>,
+    ) -> Option<FixedBytes<32>> {
+        if let Some(network) = self.network_rpc.as_ref() {
+            let provider = ProviderBuilder::new().on_http(network.parse().unwrap());
+
+            let storage = provider
+                .get_storage_at(address.clone(), U256::from_be_bytes(key.0))
+                .await
+                .unwrap();
+
+            Some(FixedBytes::from_slice(&storage.to_be_bytes_vec()))
+        } else {
             None
         }
     }

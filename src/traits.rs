@@ -1,4 +1,7 @@
-use alloy::primitives::{Address, FixedBytes};
+use alloy::{
+    hex::FromHex,
+    primitives::{Address, FixedBytes},
+};
 use colored::Colorize;
 use serde::Deserialize;
 use std::fmt::Display;
@@ -112,6 +115,115 @@ impl VerificationResult {
                     bytecode_hash, expected
                 ));
             }
+        }
+    }
+
+    pub async fn expect_deployed_bytecode(
+        &mut self,
+        verifiers: &Verifiers,
+        address: &Address,
+        expected_file: &str,
+    ) {
+        self.expect_deployed_bytecode_internal(verifiers, address, expected_file, false)
+            .await;
+    }
+
+    pub async fn expect_deployed_bytecode_internal(
+        &mut self,
+        verifiers: &Verifiers,
+        address: &Address,
+        expected_file: &str,
+        report_ok: bool,
+    ) -> bool {
+        let bytecode_hash = verifiers
+            .network_verifier
+            .get_bytecode_hash_at(address)
+            .await;
+        match bytecode_hash {
+            Some(bytecode_hash) => {
+                if bytecode_hash == FixedBytes::ZERO {
+                    self.report_warn(&format!(
+                        "Bytecode hash at {} is zero - expected code {} at {}",
+                        address,
+                        expected_file,
+                        Location::caller()
+                    ));
+                    return false;
+                } else {
+                    let original_file = verifiers
+                        .bytecode_verifier
+                        .bytecode_hash_to_file(&bytecode_hash);
+                    match original_file {
+                        Some(file) => {
+                            if file == expected_file {
+                                if report_ok {
+                                    self.report_ok(&format!("{} at {}", expected_file, address));
+                                }
+                                true
+                            } else {
+                                self.report_error(&format!(
+                                    "Bytecode from wrong file: Expected {} got {} at {}",
+                                    expected_file,
+                                    file,
+                                    Location::caller()
+                                ));
+                                false
+                            }
+                        }
+                        None => {
+                            self.report_warn(&format!(
+                                "Unknown bytecode hash at address {} - {} - expected {} at {}",
+                                address,
+                                bytecode_hash,
+                                expected_file,
+                                Location::caller()
+                            ));
+                            false
+                        }
+                    }
+                }
+            }
+            None => {
+                self.report_warn(&format!(
+                    "No RPC connection - Cannot check bytecode for {} at {}",
+                    expected_file, address
+                ));
+                false
+            }
+        }
+    }
+
+    pub async fn expect_deployed_proxy_with_bytecode(
+        &mut self,
+        verifiers: &crate::traits::Verifiers,
+        address: &Address,
+        expected_file: &str,
+    ) {
+        // Check that this is really a proxy
+        let is_proxy_deployed = self
+            .expect_deployed_bytecode_internal(
+                verifiers,
+                address,
+                "TransparentUpgradeableProxy",
+                false,
+            )
+            .await;
+        if is_proxy_deployed {
+            let transparent_proxy_key = FixedBytes::from_hex(
+                "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
+            )
+            .unwrap();
+            let implementation_address = verifiers
+                .network_verifier
+                .storage_at(address, &transparent_proxy_key)
+                .await;
+
+            let implementation_address = implementation_address.unwrap();
+
+            let aa = Address::from_slice(&implementation_address.as_slice()[12..]);
+
+            self.expect_deployed_bytecode(verifiers, &aa, expected_file)
+                .await;
         }
     }
 }

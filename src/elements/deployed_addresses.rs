@@ -1,7 +1,5 @@
-use std::panic::Location;
-
 use crate::{traits::Verify, utils::address_verifier::AddressVerifier};
-use alloy::primitives::{Address, FixedBytes};
+use alloy::primitives::Address;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -30,7 +28,6 @@ pub struct Bridgehub {
 pub struct StateTransition {
     pub verifier_addr: Address,
     pub state_transition_implementation_addr: Address,
-
     pub genesis_upgrade_addr: Address,
 }
 
@@ -71,66 +68,6 @@ impl DeployedAddresses {
             "genesis_upgrade_addr",
         );
     }
-
-    //#[track_caller]
-    async fn verify_single_address(
-        &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
-        address: &Address,
-        expected_file: &str,
-    ) -> anyhow::Result<()> {
-        let bytecode_hash = verifiers
-            .network_verifier
-            .get_bytecode_hash_at(address)
-            .await;
-        match bytecode_hash {
-            Some(bytecode_hash) => {
-                println!(
-                    "Checking bytecode for {} at {} l1 hash: {}",
-                    expected_file, address, bytecode_hash
-                );
-                if bytecode_hash == FixedBytes::ZERO {
-                    result.report_warn(&format!(
-                        "Bytecode hash at {} is zero - expected code {} at {}",
-                        address,
-                        expected_file,
-                        Location::caller()
-                    ));
-                    return Ok(());
-                } else {
-                    let original_file = verifiers
-                        .bytecode_verifier
-                        .bytecode_hash_to_file(&bytecode_hash);
-                    match original_file {
-                        Some(file) => {
-                            if file == expected_file {
-                                result.report_ok(expected_file);
-                            } else {
-                                result.report_error(&format!(
-                                    "{} has bytecode from wrong file: {} at {}",
-                                    expected_file,
-                                    file,
-                                    Location::caller()
-                                ));
-                            }
-                        }
-                        None => result.report_warn(&format!(
-                            "Unknown bytecode hash at address {} - {} - at {}",
-                            address,
-                            bytecode_hash,
-                            Location::caller()
-                        )),
-                    }
-                }
-            }
-            None => result.report_warn(&format!(
-                "No RPC connection - Cannot check bytecode for {} at {}",
-                expected_file, address
-            )),
-        };
-        Ok(())
-    }
 }
 
 impl Verify for DeployedAddresses {
@@ -139,39 +76,129 @@ impl Verify for DeployedAddresses {
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
-        self.verify_single_address(
-            verifiers,
-            result,
-            &self.native_token_vault_addr,
-            "NativeTokenVault.sol",
-        )
-        .await?;
+        result
+            .expect_deployed_proxy_with_bytecode(
+                verifiers,
+                &self.native_token_vault_addr,
+                "NativeTokenVault.sol",
+            )
+            .await;
 
-        self.verify_single_address(
-            verifiers,
-            result,
-            &self.validator_timelock_addr,
-            "ValidatorTimelock",
-        )
-        .await?;
+        result
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.validator_timelock_addr,
+                "ValidatorTimelock",
+            )
+            .await;
 
-        self.verify_single_address(
-            verifiers,
-            result,
-            &self.bridges.shared_bridge_proxy_addr,
-            "SharedBridgeProxy.sol",
-        )
-        .await?;
-        self.verify_single_address(
-            verifiers,
-            result,
-            &self.bridgehub.ctm_deployment_tracker_proxy_addr,
-            "CtmDeploymentTrackerProxy.sol",
-        )
-        .await?;
+        result
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.l2_wrapped_base_token_store_addr,
+                "L2WrappedBaseTokenStore",
+            )
+            .await;
+
+        result
+            .expect_deployed_proxy_with_bytecode(
+                verifiers,
+                &self.bridgehub.ctm_deployment_tracker_proxy_addr,
+                "CtmDeploymentTrackerProxy.sol",
+            )
+            .await;
+
+        self.bridges.verify(verifiers, result).await?;
+        self.bridgehub.verify(verifiers, result).await?;
+        self.state_transition.verify(verifiers, result).await?;
 
         // TODO: verify that each address has actually something deployed.
         result.report_ok("deployed addresses");
+        Ok(())
+    }
+}
+
+impl Verify for Bridges {
+    async fn verify(
+        &self,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+    ) -> anyhow::Result<()> {
+        result
+            .expect_deployed_proxy_with_bytecode(
+                verifiers,
+                &self.shared_bridge_proxy_addr,
+                "SharedBridgeProxy.sol",
+            )
+            .await;
+
+        result
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.l1_nullifier_implementation_addr,
+                "L1Nullifier",
+            )
+            .await;
+
+        result
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.erc20_bridge_implementation_addr,
+                "ERC20Bridge",
+            )
+            .await;
+
+        Ok(())
+    }
+}
+
+impl Verify for Bridgehub {
+    async fn verify(
+        &self,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+    ) -> anyhow::Result<()> {
+        result
+            .expect_deployed_proxy_with_bytecode(
+                verifiers,
+                &self.ctm_deployment_tracker_proxy_addr,
+                "CTMDeploymentTracker",
+            )
+            .await;
+
+        result
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.bridgehub_implementation_addr,
+                "BridgehubImplementation",
+            )
+            .await;
+
+        Ok(())
+    }
+}
+
+impl Verify for StateTransition {
+    async fn verify(
+        &self,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+    ) -> anyhow::Result<()> {
+        result
+            .expect_deployed_bytecode(verifiers, &self.verifier_addr, "Verifier")
+            .await;
+
+        result
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.state_transition_implementation_addr,
+                "StateTransitionImpl",
+            )
+            .await;
+        result
+            .expect_deployed_bytecode(verifiers, &self.genesis_upgrade_addr, "L1GenesisUpgrade")
+            .await;
+
         Ok(())
     }
 }
