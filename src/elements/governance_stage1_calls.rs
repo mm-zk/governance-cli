@@ -15,7 +15,7 @@ pub struct GovernanceStage1Calls {
 }
 
 impl Verify for GovernanceStage1Calls {
-    fn verify(
+    async fn verify(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
@@ -64,7 +64,8 @@ impl Verify for GovernanceStage1Calls {
 
         upgrade
             ._proposedUpgrade
-            .verify_transaction(verifiers, result)?;
+            .verify_transaction(verifiers, result)
+            .await?;
 
         Ok(())
     }

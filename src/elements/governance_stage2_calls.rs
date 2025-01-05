@@ -110,7 +110,7 @@ impl GovernanceStage2Calls {
 }
 
 impl Verify for GovernanceStage2Calls {
-    fn verify(
+    async fn verify(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
@@ -208,7 +208,10 @@ impl Verify for GovernanceStage2Calls {
         let decoded =
             setChainCreationParamsCall::abi_decode(&self.calls.elems[4].data, true).unwrap();
 
-        decoded._chainCreationParams.verify(verifiers, result)?;
+        decoded
+            ._chainCreationParams
+            .verify(verifiers, result)
+            .await?;
 
         {
             let decoded =
@@ -262,7 +265,7 @@ impl Verify for GovernanceStage2Calls {
 }
 
 impl ChainCreationParams {
-    pub fn verify(
+    pub async fn verify(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
@@ -327,7 +330,9 @@ impl ChainCreationParams {
 
         let fixed_force_deployments_data =
             FixedForceDeploymentsData::abi_decode(&self.forceDeploymentsData, true)?;
-        fixed_force_deployments_data.verify(verifiers, result)?;
+        fixed_force_deployments_data
+            .verify(verifiers, result)
+            .await?;
 
         Ok(())
     }

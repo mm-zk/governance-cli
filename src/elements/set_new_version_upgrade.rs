@@ -95,7 +95,7 @@ sol! {
 impl upgradeCall {}
 
 impl ProposedUpgrade {
-    pub fn verify_transaction(
+    pub async fn verify_transaction(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
@@ -207,7 +207,7 @@ impl ProposedUpgrade {
 
         let post_upgrade_calldata = PostUpgradeCalldata::parse(&self.postUpgradeCalldata);
 
-        post_upgrade_calldata.verify(verifiers, result)?;
+        post_upgrade_calldata.verify(verifiers, result).await?;
 
         if errors > 0 {
             anyhow::bail!("{} errors", errors)

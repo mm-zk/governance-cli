@@ -31,7 +31,7 @@ impl PostUpgradeCalldata {
         }
     }
 
-    pub fn verify(
+    pub async fn verify(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
@@ -76,7 +76,9 @@ impl PostUpgradeCalldata {
         )
         .unwrap();
 
-        fixed_force_deployments_data.verify(verifiers, result)?;
+        fixed_force_deployments_data
+            .verify(verifiers, result)
+            .await?;
 
         Ok(())
     }

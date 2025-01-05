@@ -107,7 +107,7 @@ impl DeployedAddresses {
 }
 
 impl Verify for DeployedAddresses {
-    fn verify(
+    async fn verify(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,

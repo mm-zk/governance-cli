@@ -26,7 +26,7 @@ sol! {
 }
 
 impl FixedForceDeploymentsData {
-    pub fn verify(
+    pub async fn verify(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
@@ -45,7 +45,7 @@ impl FixedForceDeploymentsData {
             }
         }
 
-        match verifiers.network_verifier.get_l1_chain_id() {
+        match verifiers.network_verifier.get_l1_chain_id().await {
             Some(l1_chain_id) => {
                 if U256::from(l1_chain_id) != self.l1ChainId {
                     result.report_error(&format!(

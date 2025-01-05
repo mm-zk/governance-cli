@@ -142,5 +142,9 @@ impl Display for VerificationResult {
 }
 
 pub trait Verify {
-    fn verify(&self, verifiers: &Verifiers, result: &mut VerificationResult) -> anyhow::Result<()>;
+    async fn verify(
+        &self,
+        verifiers: &Verifiers,
+        result: &mut VerificationResult,
+    ) -> anyhow::Result<()>;
 }

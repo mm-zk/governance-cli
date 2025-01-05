@@ -73,7 +73,11 @@ impl OtherConfig {
 }
 
 impl Verify for Config {
-    fn verify(&self, verifiers: &Verifiers, result: &mut VerificationResult) -> anyhow::Result<()> {
+    async fn verify(
+        &self,
+        verifiers: &Verifiers,
+        result: &mut VerificationResult,
+    ) -> anyhow::Result<()> {
         result.print_info("== Config verification ==");
 
         match verifiers.network_verifier.get_era_chain_id() {
@@ -92,18 +96,18 @@ impl Verify for Config {
             }
         }
         // Check that addresses actually contain correct bytecodes.
-        self.deployed_addresses.verify(verifiers, result)?;
+        self.deployed_addresses.verify(verifiers, result).await?;
 
         let stage1 = GovernanceStage1Calls {
             calls: CallList::parse(&self.governance_stage1_calls),
         };
 
-        stage1.verify(verifiers, result)?;
+        stage1.verify(verifiers, result).await?;
 
         let stage2 = GovernanceStage2Calls {
             calls: CallList::parse(&self.governance_stage2_calls),
         };
-        stage2.verify(verifiers, result)?;
+        stage2.verify(verifiers, result).await?;
 
         Ok(())
     }
@@ -155,6 +159,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     verifiers.genesis_config =
         Some(GenesisConfig::init_from_github("69ea2c61ae0e84da982493427bf39b6e62632de5").await);
 
+    verifiers
+        .network_verifier
+        .add_network_rpc("http://localhost:8545".to_string());
+
     let mut result = VerificationResult::default();
 
     config.add_to_verifier(&mut verifiers.address_verifier);
@@ -163,7 +171,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let other_config: OtherConfig = toml::from_str(&other_yaml_content)?;
     other_config.add_to_verifier(&mut verifiers.address_verifier);
 
-    let r = config.verify(&verifiers, &mut result);
+    let r = config.verify(&verifiers, &mut result).await;
 
     println!("{}", result);
     r.unwrap();
