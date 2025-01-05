@@ -34,11 +34,16 @@ struct Config {
 
     #[allow(dead_code)]
     owner_address: String,
+
+    other_config: Option<OtherConfig>,
 }
 
 impl Config {
     pub fn add_to_verifier(&self, address_verifier: &mut AddressVerifier) {
         self.deployed_addresses.add_to_verifier(address_verifier);
+        if let Some(other_config) = &self.other_config {
+            other_config.add_to_verifier(address_verifier);
+        }
     }
 }
 
@@ -72,6 +77,71 @@ impl OtherConfig {
     }
 }
 
+impl Verify for OtherConfig {
+    async fn verify(
+        &self,
+        verifiers: &Verifiers,
+        result: &mut VerificationResult,
+    ) -> anyhow::Result<()> {
+        result.print_info("== Other config verification ==");
+
+        result
+            .expect_deployed_bytecode(verifiers, &self.rollup_da_manager, "RollupDAManager")
+            .await;
+
+        result
+            .expect_deployed_bytecode(verifiers, &self.state_transition_manager, "StateTransiton")
+            .await;
+        result
+            .expect_deployed_bytecode(verifiers, &self.upgrade_timer, "UpgradeTimer")
+            .await;
+        result
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.transparent_proxy_admin,
+                "TransparentProxyAdmin",
+            )
+            .await;
+
+        result
+            .expect_deployed_bytecode(verifiers, &self.bridgehub_proxy, "BridgehubProxy")
+            .await;
+        result
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.old_shared_bridge_proxy,
+                "OldSharedBridgeProxy",
+            )
+            .await;
+
+        result
+            .expect_deployed_bytecode(verifiers, &self.legacy_erc20_bridge, "LegacyERC20Bridge")
+            .await;
+
+        result
+            .expect_deployed_bytecode(verifiers, &self.aliased_governance, "AliasedGovernance")
+            .await;
+
+        result
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.shared_bridge_legacy_impl,
+                "SharedBridgeLegacyImpl",
+            )
+            .await;
+
+        result
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.erc20_bridged_standard,
+                "ERC20BridgedStandard",
+            )
+            .await;
+
+        Ok(())
+    }
+}
+
 impl Verify for Config {
     async fn verify(
         &self,
@@ -97,6 +167,12 @@ impl Verify for Config {
         }
         // Check that addresses actually contain correct bytecodes.
         self.deployed_addresses.verify(verifiers, result).await?;
+
+        self.other_config
+            .as_ref()
+            .unwrap()
+            .verify(verifiers, result)
+            .await?;
 
         let stage1 = GovernanceStage1Calls {
             calls: CallList::parse(&self.governance_stage1_calls),
@@ -137,7 +213,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let yaml_content = fs::read_to_string("data/349ba7cb/gateway-upgrade-ecosystem.toml")?;
 
     // Parse the YAML content
-    let config: Config = toml::from_str(&yaml_content)?;
+    let mut config: Config = toml::from_str(&yaml_content)?;
 
     let mut verifiers = Verifiers::default();
 
@@ -163,13 +239,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .network_verifier
         .add_network_rpc("http://localhost:8545".to_string());
 
+    let other_yaml_content = fs::read_to_string("data/349ba7cb/other.toml")?;
+    let other_config: OtherConfig = toml::from_str(&other_yaml_content)?;
+
+    config.other_config = Some(other_config);
+
     let mut result = VerificationResult::default();
 
     config.add_to_verifier(&mut verifiers.address_verifier);
-
-    let other_yaml_content = fs::read_to_string("data/349ba7cb/other.toml")?;
-    let other_config: OtherConfig = toml::from_str(&other_yaml_content)?;
-    other_config.add_to_verifier(&mut verifiers.address_verifier);
 
     let r = config.verify(&verifiers, &mut result).await;
 
