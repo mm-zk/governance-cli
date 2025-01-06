@@ -4,7 +4,8 @@ Tool to analyze the zkSync upgrades.
 
 
 
-First, you need to get the gateway-upgrade-ecosystem.toml file (TODO - from where?)
+First, you need to get the gateway-upgrade-ecosystem.toml file.
+(you can find it in contracts/l1-contracts/script-config/gateway-upgrade-ecosystem.toml )
 
 
 ## Example use:
