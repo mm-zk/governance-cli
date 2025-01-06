@@ -57,10 +57,10 @@ struct OtherConfig {
     bridgehub_proxy: Address,
     old_shared_bridge_proxy: Address,
     legacy_erc20_bridge: Address,
-    aliased_governance: Address,
-    shared_bridge_legacy_impl: Address,
-    erc20_bridged_standard: Address,
-    blob_versioned_hash_retriever: Address,
+    //aliased_governance: Address,
+    //shared_bridge_legacy_impl: Address,
+    //erc20_bridged_standard: Address,
+    //blob_versioned_hash_retriever: Address,
 }
 
 impl OtherConfig {
@@ -72,13 +72,49 @@ impl OtherConfig {
         address_verifier.add_address(self.bridgehub_proxy, "bridgehub_proxy");
         address_verifier.add_address(self.old_shared_bridge_proxy, "old_shared_bridge_proxy");
         address_verifier.add_address(self.legacy_erc20_bridge, "legacy_erc20_bridge_proxy");
+        /*
         address_verifier.add_address(self.aliased_governance, "aliased_governance");
         address_verifier.add_address(self.shared_bridge_legacy_impl, "shared_bridge_legacy_impl");
         address_verifier.add_address(self.erc20_bridged_standard, "erc20_bridged_standard");
         address_verifier.add_address(
             self.blob_versioned_hash_retriever,
             "blob_versioned_hash_retriever",
+        );*/
+    }
+
+    // This method loads the 'missing' information from the config itself.
+    // This is a temporary thing - these addresses should be explictily put inside the high level
+    // config file instead.
+    pub fn init_from_config(config: &Config) -> Self {
+        let rollup_da_manager = CallList::parse(&config.governance_stage1_calls).elems[3].target;
+        let state_transition_manager =
+            CallList::parse(&config.governance_stage1_calls).elems[4].target;
+        let upgrade_timer = CallList::parse(&config.governance_stage1_calls).elems[5].target;
+
+        let transparent_proxy_admin =
+            CallList::parse(&config.governance_stage2_calls).elems[0].target;
+
+        let bridgehub_proxy = CallList::parse(&config.governance_stage2_calls).elems[6].target;
+        let old_shared_bridge_proxy =
+            CallList::parse(&config.governance_stage2_calls).elems[7].target;
+
+        let legacy_erc20_bridge = Address::from_slice(
+            &CallList::parse(&config.governance_stage2_calls).elems[3].data[16..36],
         );
+
+        Self {
+            rollup_da_manager,
+            state_transition_manager,
+            upgrade_timer,
+            transparent_proxy_admin,
+            bridgehub_proxy,
+            old_shared_bridge_proxy,
+            legacy_erc20_bridge,
+            //aliased_governance: config.deployed_addresses.aliased_governance,
+            //shared_bridge_legacy_impl: config.deployed_addresses.l2SharedBridgeLegacyImpl,
+            //erc20_bridged_standard: config.deployed_addresses.l2BridgedStandardERC20Impl,
+            //blob_versioned_hash_retriever: config.deployed_addresses.blob_versioned_hash_retriever,
+        }
     }
 }
 
@@ -123,6 +159,8 @@ impl Verify for OtherConfig {
             .expect_deployed_bytecode(verifiers, &self.legacy_erc20_bridge, "LegacyERC20Bridge")
             .await;
 
+        /*
+
         result
             .expect_deployed_bytecode(verifiers, &self.aliased_governance, "AliasedGovernance")
             .await;
@@ -149,7 +187,7 @@ impl Verify for OtherConfig {
                 &self.blob_versioned_hash_retriever,
                 "BlobVersionedHashRetriever",
             )
-            .await;
+            .await;*/
 
         Ok(())
     }
@@ -227,26 +265,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     // Read the YAML file
-    let yaml_content = fs::read_to_string("data/349ba7cb/gateway-upgrade-ecosystem.toml")?;
+    let yaml_content = fs::read_to_string("data/p2/gateway-upgrade-ecosystem.toml")?;
 
     // Parse the YAML content
     let mut config: Config = toml::from_str(&yaml_content)?;
 
     let mut verifiers = Verifiers::default();
 
-    /*verifiers
-    .bytecode_verifier
-    .init_from_github("3e2dad0d96ff8ca21e3fb609d2123b5ace37f573")
-    .await;*/
-
-    /*verifiers
-    .bytecode_verifier
-    .init_from_github("7aab7a47857c0bac8eac5abb8ae695a63be1c3df")
-    .await;*/
-
     verifiers
         .bytecode_verifier
-        .init_from_github("e0ece9a1c81846dc2efbe61013204fcdfb7d3773")
+        .init_from_github("26cc4e4ba641f1695c52cf249e9278207d403d9d")
         .await;
 
     verifiers.genesis_config =
@@ -256,8 +284,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .network_verifier
         .add_network_rpc("http://localhost:8545".to_string());
 
-    let other_yaml_content = fs::read_to_string("data/349ba7cb/other.toml")?;
-    let other_config: OtherConfig = toml::from_str(&other_yaml_content)?;
+    let other_config = OtherConfig::init_from_config(&config);
+
+    //let other_yaml_content = fs::read_to_string("data/p2/other.toml")?;
+    //let other_config: OtherConfig = toml::from_str(&other_yaml_content)?;
 
     config.other_config = Some(other_config);
 

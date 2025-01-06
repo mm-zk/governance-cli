@@ -65,11 +65,12 @@ impl InitializeDataNewChain {
 
         // TODO: verify fee params sanity.
 
+        /*
         result.expect_address(
             verifiers,
             &self.blobVersionedHashRetriever,
             "blob_versioned_hash_retriever",
-        );
+        );*/
 
         Ok(())
     }

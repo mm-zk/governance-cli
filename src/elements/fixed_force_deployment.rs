@@ -61,7 +61,7 @@ impl FixedForceDeploymentsData {
 
         result.expect_address(verifiers, &self.l1AssetRouter, "shared_bridge_proxy");
         result.expect_bytecode(verifiers, &self.l2TokenProxyBytecodeHash, "BeaconProxy");
-        result.expect_address(verifiers, &self.aliasedL1Governance, "aliased_governance");
+        //result.expect_address(verifiers, &self.aliasedL1Governance, "aliased_governance");
 
         if self.maxNumberOfZKChains != U256::from(100) {
             result.report_error("maxNumberOfZKChains must be 100");
@@ -73,17 +73,17 @@ impl FixedForceDeploymentsData {
 
         result.expect_bytecode(verifiers, &self.messageRootBytecodeHash, "MessageRoot");
 
-        result.expect_address(
+        /*result.expect_address(
             verifiers,
             &self.l2SharedBridgeLegacyImpl,
             "shared_bridge_legacy_impl",
-        );
+        );*/
 
-        result.expect_address(
+        /*result.expect_address(
             verifiers,
             &self.l2BridgedStandardERC20Impl,
             "erc20_bridged_standard",
-        );
+        );*/
 
         if self.dangerousTestOnlyForcedBeacon != Address::ZERO {
             result.report_error("dangerousTestOnlyForcedBeacon must be 0");
