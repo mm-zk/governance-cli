@@ -35,7 +35,7 @@ sol! {
     function setProtocolVersionDeadline(uint256 protocolVersion, uint256 newDeadline) {
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     enum Action {
         Add,
         Replace,
@@ -106,7 +106,10 @@ impl GovernanceStage2Calls {
 
         if result.expect_address(verifiers, &proxy, proxy_address) {
             if result.expect_address(verifiers, &implementation, implementation_address) {
-                result.report_ok(&format!("Upgrade call for {} to {}", proxy, implementation));
+                result.report_ok(&format!(
+                    "Upgrade call for {} ({}) to {} ({})",
+                    proxy, proxy_address, implementation, implementation_address
+                ));
             }
         }
     }
@@ -273,6 +276,7 @@ impl ChainCreationParams {
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
+        result.print_info("== Chain creation params ==");
         let genesis_upgrade_address = verifiers
             .address_verifier
             .name_or_unknown(&self.genesisUpgrade);
@@ -346,7 +350,27 @@ pub async fn verify_chain_creation_diamond_cut(
     result: &mut crate::traits::VerificationResult,
     diamond_cut: &DiamondCutData,
 ) {
-    // TODO: verify facets
+    let expected_facets = [
+        "admin_facet",
+        "getters_facet",
+        "mailbox_facet",
+        "executor_facet",
+    ];
+
+    if diamond_cut.facetCuts.len() != expected_facets.len() {
+        result.report_error(&format!(
+            "Expected {} facets, but got {}",
+            expected_facets.len(),
+            diamond_cut.facetCuts.len()
+        ));
+    }
+    diamond_cut
+        .facetCuts
+        .iter()
+        .zip(expected_facets.iter())
+        .for_each(|(facet, expected_facet)| {
+            verify_facet(verifiers, result, facet, expected_facet);
+        });
 
     result.expect_address(verifiers, &diamond_cut.initAddress, "diamond_init");
     let intialize_data_new_chain =
@@ -355,4 +379,25 @@ pub async fn verify_chain_creation_diamond_cut(
         .verify(verifiers, result)
         .await
         .unwrap();
+}
+
+pub fn verify_facet(
+    verifiers: &crate::traits::Verifiers,
+    result: &mut crate::traits::VerificationResult,
+    facet: &FacetCut,
+    expected_facet: &str,
+) {
+    let facet_address = verifiers.address_verifier.name_or_unknown(&facet.facet);
+    if facet_address != expected_facet {
+        result.report_error(&format!(
+            "Expected facet address to be {}, but got {}",
+            expected_facet, facet_address
+        ));
+    }
+    if facet.action != Action::Add {
+        result.report_error(&format!(
+            "Expected facet {} action to be Add, but got {:?}",
+            expected_facet, facet.action
+        ));
+    }
 }
