@@ -1,4 +1,7 @@
-use crate::traits::{Verifiers, Verify};
+use crate::{
+    elements::initialize_data_new_chain::InitializeDataNewChain,
+    traits::{Verifiers, Verify},
+};
 use alloy::{
     hex,
     primitives::U256,
@@ -326,7 +329,7 @@ impl ChainCreationParams {
             ));
         }
 
-        // TODO: implement diamond cut verification
+        verify_chain_creation_diamond_cut(verifiers, result, &self.diamondCut).await;
 
         let fixed_force_deployments_data =
             FixedForceDeploymentsData::abi_decode(&self.forceDeploymentsData, true)?;
@@ -336,4 +339,21 @@ impl ChainCreationParams {
 
         Ok(())
     }
+}
+
+pub async fn verify_chain_creation_diamond_cut(
+    verifiers: &crate::traits::Verifiers,
+    result: &mut crate::traits::VerificationResult,
+    diamond_cut: &DiamondCutData,
+) {
+    dbg!(diamond_cut);
+    // TODO: verify facets
+
+    result.expect_address(verifiers, &diamond_cut.initAddress, "diamond_init");
+    let intialize_data_new_chain =
+        InitializeDataNewChain::abi_decode(&diamond_cut.initCalldata, true).unwrap();
+    intialize_data_new_chain
+        .verify(verifiers, result)
+        .await
+        .unwrap();
 }

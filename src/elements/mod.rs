@@ -4,6 +4,7 @@ pub mod fixed_force_deployment;
 pub mod force_deployment;
 pub mod governance_stage1_calls;
 pub mod governance_stage2_calls;
+pub mod initialize_data_new_chain;
 pub mod post_upgrade_calldata;
 pub mod protocol_version;
 pub mod set_new_version_upgrade;

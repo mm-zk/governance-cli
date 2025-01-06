@@ -60,6 +60,7 @@ struct OtherConfig {
     aliased_governance: Address,
     shared_bridge_legacy_impl: Address,
     erc20_bridged_standard: Address,
+    blob_versioned_hash_retriever: Address,
 }
 
 impl OtherConfig {
@@ -74,6 +75,10 @@ impl OtherConfig {
         address_verifier.add_address(self.aliased_governance, "aliased_governance");
         address_verifier.add_address(self.shared_bridge_legacy_impl, "shared_bridge_legacy_impl");
         address_verifier.add_address(self.erc20_bridged_standard, "erc20_bridged_standard");
+        address_verifier.add_address(
+            self.blob_versioned_hash_retriever,
+            "blob_versioned_hash_retriever",
+        );
     }
 }
 
@@ -135,6 +140,14 @@ impl Verify for OtherConfig {
                 verifiers,
                 &self.erc20_bridged_standard,
                 "ERC20BridgedStandard",
+            )
+            .await;
+
+        result
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.blob_versioned_hash_retriever,
+                "BlobVersionedHashRetriever",
             )
             .await;
 

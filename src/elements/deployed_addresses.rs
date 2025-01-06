@@ -14,21 +14,29 @@ pub struct DeployedAddresses {
 
 #[derive(Debug, Deserialize)]
 pub struct Bridges {
+    // TODO: fill other addresses & verify what's inside
     shared_bridge_proxy_addr: Address,
     pub l1_nullifier_implementation_addr: Address,
     pub erc20_bridge_implementation_addr: Address,
 }
 #[derive(Debug, Deserialize)]
 pub struct Bridgehub {
+    // TODO: fill other addresses & verify what's inside
     ctm_deployment_tracker_proxy_addr: Address,
     bridgehub_implementation_addr: Address,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct StateTransition {
-    pub verifier_addr: Address,
-    pub state_transition_implementation_addr: Address,
+    pub admin_facet_addr: Address,
+    pub default_upgrade_addr: Address,
+    pub diamond_init_addr: Address,
+    pub executor_facet_addr: Address,
     pub genesis_upgrade_addr: Address,
+    pub getters_facet_addr: Address,
+    pub mailbox_facet_addr: Address,
+    pub state_transition_implementation_addr: Address,
+    pub verifier_addr: Address,
 }
 
 impl DeployedAddresses {
@@ -44,17 +52,12 @@ impl DeployedAddresses {
             self.bridgehub.bridgehub_implementation_addr,
             "bridgehub_implementation_addr",
         );
-        address_verifier.add_address(self.state_transition.verifier_addr, "verifier");
 
         address_verifier.add_address(
             self.l2_wrapped_base_token_store_addr,
             "l2_wrapped_base_token_store",
         );
 
-        address_verifier.add_address(
-            self.state_transition.state_transition_implementation_addr,
-            "state_transition_implementation_addr",
-        );
         address_verifier.add_address(
             self.bridges.l1_nullifier_implementation_addr,
             "l1_nullifier_implementation_addr",
@@ -63,10 +66,24 @@ impl DeployedAddresses {
             self.bridges.erc20_bridge_implementation_addr,
             "erc20_bridge_implementation_addr",
         );
+        self.state_transition.add_to_verifier(address_verifier);
+    }
+}
+
+impl StateTransition {
+    pub fn add_to_verifier(&self, address_verifier: &mut AddressVerifier) {
+        address_verifier.add_address(self.admin_facet_addr, "admin_facet");
+        address_verifier.add_address(self.default_upgrade_addr, "default_upgrade");
+        address_verifier.add_address(self.diamond_init_addr, "diamond_init");
+        address_verifier.add_address(self.executor_facet_addr, "executor_facet");
+        address_verifier.add_address(self.genesis_upgrade_addr, "genesis_upgrade_addr");
+        address_verifier.add_address(self.getters_facet_addr, "getters_facet");
+        address_verifier.add_address(self.mailbox_facet_addr, "mailbox_facet");
         address_verifier.add_address(
-            self.state_transition.genesis_upgrade_addr,
-            "genesis_upgrade_addr",
+            self.state_transition_implementation_addr,
+            "state_transition_implementation_addr",
         );
+        address_verifier.add_address(self.verifier_addr, "verifier");
     }
 }
 
@@ -112,7 +129,6 @@ impl Verify for DeployedAddresses {
         self.bridgehub.verify(verifiers, result).await?;
         self.state_transition.verify(verifiers, result).await?;
 
-        // TODO: verify that each address has actually something deployed.
         result.report_ok("deployed addresses");
         Ok(())
     }
@@ -197,6 +213,25 @@ impl Verify for StateTransition {
             .await;
         result
             .expect_deployed_bytecode(verifiers, &self.genesis_upgrade_addr, "L1GenesisUpgrade")
+            .await;
+
+        result
+            .expect_deployed_bytecode(verifiers, &self.admin_facet_addr, "AdminFacet")
+            .await;
+        result
+            .expect_deployed_bytecode(verifiers, &self.default_upgrade_addr, "DefaultUpgrade")
+            .await;
+        result
+            .expect_deployed_bytecode(verifiers, &self.diamond_init_addr, "DiamondInit")
+            .await;
+        result
+            .expect_deployed_bytecode(verifiers, &self.executor_facet_addr, "ExecutorFacet")
+            .await;
+        result
+            .expect_deployed_bytecode(verifiers, &self.getters_facet_addr, "GettersFacet")
+            .await;
+        result
+            .expect_deployed_bytecode(verifiers, &self.mailbox_facet_addr, "MailboxFacet")
             .await;
 
         Ok(())

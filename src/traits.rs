@@ -124,7 +124,7 @@ impl VerificationResult {
         address: &Address,
         expected_file: &str,
     ) {
-        self.expect_deployed_bytecode_internal(verifiers, address, expected_file, false)
+        self.expect_deployed_bytecode_internal(verifiers, address, expected_file, true)
             .await;
     }
 
@@ -220,10 +220,12 @@ impl VerificationResult {
 
             let implementation_address = implementation_address.unwrap();
 
-            let aa = Address::from_slice(&implementation_address.as_slice()[12..]);
-
-            self.expect_deployed_bytecode(verifiers, &aa, expected_file)
-                .await;
+            self.expect_deployed_bytecode(
+                verifiers,
+                &Address::from_slice(&implementation_address.as_slice()[12..]),
+                expected_file,
+            )
+            .await;
         }
     }
 }

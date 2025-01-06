@@ -18,3 +18,5 @@ aliased_governance = "0x895c80ea846f1ea6541D63be95491fF9277D8cEb"
 shared_bridge_legacy_impl = "0x5CF6F6987e7CcF08cA0ceB436Cd94537f7Ef1494"
 # missing
 erc20_bridged_standard = "0xC3bB19f1A5cCa989fFF063e64609bc62c8e9683A"
+# missing
+blob_versioned_hash_retriever = "0x30cd59EBC1Ad74e742C2E54B934a572625fF18a4"
