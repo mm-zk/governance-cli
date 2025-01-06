@@ -236,8 +236,8 @@ impl Display for VerificationResult {
             let res = "ERROR".red();
             write!(
                 f,
-                "{} errors: {} - result: {}",
-                res, self.errors, self.result
+                "{} errors: {}, warnings: {} - result: {}",
+                res, self.errors, self.warnings, self.result
             )
         } else {
             if self.warnings == 0 {

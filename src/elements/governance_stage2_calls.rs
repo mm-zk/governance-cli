@@ -346,7 +346,6 @@ pub async fn verify_chain_creation_diamond_cut(
     result: &mut crate::traits::VerificationResult,
     diamond_cut: &DiamondCutData,
 ) {
-    dbg!(diamond_cut);
     // TODO: verify facets
 
     result.expect_address(verifiers, &diamond_cut.initAddress, "diamond_init");

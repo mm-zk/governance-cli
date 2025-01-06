@@ -25,8 +25,8 @@ struct Config {
     deployed_addresses: DeployedAddresses,
     #[allow(dead_code)]
     contracts_config: ContractsConfig,
-    #[allow(dead_code)]
-    create2_factory_addr: String,
+
+    create2_factory_addr: Address,
     #[allow(dead_code)]
     create2_factory_salt: String,
     #[allow(dead_code)]
@@ -180,6 +180,10 @@ impl Verify for Config {
         }
         // Check that addresses actually contain correct bytecodes.
         self.deployed_addresses.verify(verifiers, result).await?;
+
+        result
+            .expect_deployed_bytecode(verifiers, &self.create2_factory_addr, "Create2Factory")
+            .await;
 
         self.other_config
             .as_ref()
