@@ -7,6 +7,7 @@ use utils::address_verifier::AddressVerifier;
 mod elements;
 mod traits;
 mod utils;
+use clap::Parser;
 use elements::{
     call_list::CallList, deployed_addresses::DeployedAddresses,
     governance_stage1_calls::GovernanceStage1Calls, governance_stage2_calls::GovernanceStage2Calls,
@@ -16,9 +17,9 @@ use elements::{
 struct Config {
     #[allow(dead_code)]
     chain_upgrade_diamond_cut: String,
-    era_chain_id: u32,
+    era_chain_id: u64,
     #[allow(dead_code)]
-    l1_chain_id: u32,
+    l1_chain_id: u64,
     governance_stage1_calls: String,
     governance_stage2_calls: String,
 
@@ -201,7 +202,7 @@ impl Verify for Config {
     ) -> anyhow::Result<()> {
         result.print_info("== Config verification ==");
 
-        match verifiers.network_verifier.get_era_chain_id() {
+        match verifiers.network_verifier.get_era_chain_id().await {
             Some(chain_id) => {
                 if self.era_chain_id == chain_id {
                     result.report_ok("Chain id");
@@ -260,12 +261,37 @@ pub fn address_eq(address: &Address, addr_string: &String) -> bool {
             .to_ascii_lowercase()
 }
 
+#[derive(Debug, Parser)]
+struct Args {
+    // ecosystem_toml file (gateway-upgrade-ecosystem.toml)
+    #[clap(short, long)]
+    ecosystem_toml: String,
+
+    // Commit from zksync-era repository (used for genesis verification)
+    #[clap(long)]
+    era_commit: Option<String>,
+
+    // Commit from era-contracts - used for bytecode verification
+    #[clap(long)]
+    contracts_commit: Option<String>,
+
+    // L1 address
+    #[clap(long)]
+    l1_rpc: Option<String>,
+
+    // L2 address
+    #[clap(long)]
+    l2_rpc: Option<String>,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
+
     env_logger::init();
 
     // Read the YAML file
-    let yaml_content = fs::read_to_string("data/p2/gateway-upgrade-ecosystem.toml")?;
+    let yaml_content = fs::read_to_string(args.ecosystem_toml)?;
 
     // Parse the YAML content
     let mut config: Config = toml::from_str(&yaml_content)?;
@@ -274,15 +300,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     verifiers
         .bytecode_verifier
-        .init_from_github("26cc4e4ba641f1695c52cf249e9278207d403d9d")
+        .init_from_github(
+            &args
+                .era_commit
+                .unwrap_or("26cc4e4ba641f1695c52cf249e9278207d403d9d".to_string()),
+        )
         .await;
 
-    verifiers.genesis_config =
-        Some(GenesisConfig::init_from_github("69ea2c61ae0e84da982493427bf39b6e62632de5").await);
+    verifiers.genesis_config = Some(
+        GenesisConfig::init_from_github(
+            &args
+                .contracts_commit
+                .unwrap_or("69ea2c61ae0e84da982493427bf39b6e62632de5".to_string()),
+        )
+        .await,
+    );
 
-    verifiers
-        .network_verifier
-        .add_network_rpc("http://localhost:8545".to_string());
+    if let Some(l1_rpc) = &args.l1_rpc {
+        verifiers
+            .network_verifier
+            .add_l1_network_rpc(l1_rpc.clone());
+    }
+
+    if let Some(l2_rpc) = &args.l2_rpc {
+        verifiers
+            .network_verifier
+            .add_l2_network_rpc(l2_rpc.clone());
+    }
 
     let other_config = OtherConfig::init_from_config(&config);
 
