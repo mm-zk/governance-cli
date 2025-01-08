@@ -2,11 +2,33 @@ use alloy::consensus::Transaction;
 use alloy::primitives::map::{HashMap, HashSet};
 use alloy::primitives::{keccak256, Address, Bytes, FixedBytes, TxHash, U256};
 use alloy::providers::{Provider, ProviderBuilder};
+use alloy::sol;
+
+sol! {
+    #[sol(rpc)]
+    contract Bridgehub {
+        address public sharedBridge;
+        mapping(uint256 _chainId => address) public stateTransitionManager;
+    }
+
+    #[sol(rpc)]
+    contract L1SharedBridge {
+        function legacyBridge() public returns (address);
+    }
+}
+
+#[derive(Debug)]
+pub struct BridgehubInfo {
+    pub shared_bridge: Address,
+    pub legacy_bridge: Address,
+    pub stm_address: Option<Address>,
+}
 
 #[derive(Default)]
 pub struct NetworkVerifier {
     pub l1_rpc: Option<String>,
     pub l2_rpc: Option<String>,
+    pub l2_chain_id: Option<u64>,
 
     pub create2_aliases: HashMap<Address, HashSet<FixedBytes<32>>>,
 }
@@ -19,13 +41,17 @@ impl NetworkVerifier {
         self.l2_rpc = Some(network_rpc);
     }
 
-    pub async fn get_era_chain_id(&self) -> Option<u64> {
+    pub fn add_l2_chain_id(&mut self, l2_chain_id: u64) {
+        self.l2_chain_id = Some(l2_chain_id)
+    }
+
+    pub async fn get_l2_chain_id(&self) -> Option<u64> {
         if let Some(network) = self.l2_rpc.as_ref() {
             let provider = ProviderBuilder::new().on_http(network.parse().unwrap());
             let chain_id = provider.get_chain_id().await.unwrap();
             Some(chain_id)
         } else {
-            None
+            self.l2_chain_id
         }
     }
 
@@ -94,6 +120,41 @@ impl NetworkVerifier {
         } else {
             let after_32_bytes = &input[32..input.len() - 32 * num_arguments];
             Some(keccak256(after_32_bytes))
+        }
+    }
+
+    pub async fn get_bridgehub_info(&self, bridgehub_addr: Address) -> Option<BridgehubInfo> {
+        if let Some(network) = self.l1_rpc.as_ref() {
+            let provider = ProviderBuilder::new().on_http(network.parse().unwrap());
+
+            let bridgehub = Bridgehub::new(bridgehub_addr, provider.clone());
+
+            let shared_bridge_address = bridgehub.sharedBridge().call().await.unwrap().sharedBridge;
+
+            let shared_bridge = L1SharedBridge::new(shared_bridge_address, provider.clone());
+
+            let l2_chain_id = self.get_l2_chain_id().await;
+
+            let stm_address = if let Some(l2_chain_id) = l2_chain_id {
+                Some(
+                    bridgehub
+                        .stateTransitionManager(l2_chain_id.try_into().unwrap())
+                        .call()
+                        .await
+                        .unwrap()
+                        ._0,
+                )
+            } else {
+                None
+            };
+
+            Some(BridgehubInfo {
+                shared_bridge: shared_bridge_address,
+                legacy_bridge: shared_bridge.legacyBridge().call().await.unwrap()._0,
+                stm_address,
+            })
+        } else {
+            None
         }
     }
 

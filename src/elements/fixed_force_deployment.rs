@@ -31,7 +31,7 @@ impl FixedForceDeploymentsData {
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
-        match verifiers.network_verifier.get_era_chain_id().await {
+        match verifiers.network_verifier.get_l2_chain_id().await {
             Some(era_chain_id) => {
                 if U256::from(era_chain_id) != self.eraChainId {
                     result.report_error(&format!(

@@ -59,7 +59,9 @@ struct OtherConfig {
     upgrade_timer: Address,
     transparent_proxy_admin: Address,
     bridgehub_proxy: Address,
+    // verified by call to bridgehub.
     old_shared_bridge_proxy: Address,
+    // verified by call to shared bridge.
     legacy_erc20_bridge: Address,
     //aliased_governance: Address,
     //shared_bridge_legacy_impl: Address,
@@ -135,10 +137,7 @@ impl Verify for OtherConfig {
             .await;
 
         result
-            .expect_deployed_bytecode(verifiers, &self.state_transition_manager, "StateTransiton")
-            .await;
-        result
-            .expect_deployed_bytecode(verifiers, &self.upgrade_timer, "UpgradeTimer")
+            .expect_deployed_bytecode(verifiers, &self.upgrade_timer, "GovernanceUpgradeTimer")
             .await;
         result
             .expect_deployed_bytecode(
@@ -151,17 +150,43 @@ impl Verify for OtherConfig {
         result
             .expect_deployed_bytecode(verifiers, &self.bridgehub_proxy, "BridgehubProxy")
             .await;
-        result
-            .expect_deployed_bytecode(
-                verifiers,
-                &self.old_shared_bridge_proxy,
-                "OldSharedBridgeProxy",
-            )
-            .await;
 
-        result
-            .expect_deployed_bytecode(verifiers, &self.legacy_erc20_bridge, "LegacyERC20Bridge")
-            .await;
+        let bridgehub_info = verifiers
+            .network_verifier
+            .get_bridgehub_info(self.bridgehub_proxy.clone())
+            .await
+            .unwrap();
+
+        match bridgehub_info.stm_address {
+            Some(stm_address) => {
+                if stm_address != self.state_transition_manager {
+                    result.report_error(&format!(
+                        "Bridgehub STM mismatch: expected {}, got {}",
+                        self.state_transition_manager, stm_address
+                    ));
+                }
+            }
+            None => {
+                result.report_warn(&format!(
+                    "Cannot verify STM address {} - as L2 RPC is not provided.",
+                    self.state_transition_manager
+                ));
+            }
+        }
+
+        if bridgehub_info.shared_bridge != self.old_shared_bridge_proxy {
+            result.report_error(&format!(
+                "Bridgehub shared bridge mismatch: expected {}, got {}",
+                self.old_shared_bridge_proxy, bridgehub_info.shared_bridge
+            ));
+        }
+
+        if bridgehub_info.legacy_bridge != self.legacy_erc20_bridge {
+            result.report_error(&format!(
+                "Bridgehub legacy bridge mismatch: expected {}, got {}",
+                self.legacy_erc20_bridge, bridgehub_info.legacy_bridge
+            ));
+        }
 
         /*
 
@@ -205,7 +230,7 @@ impl Verify for Config {
     ) -> anyhow::Result<()> {
         result.print_info("== Config verification ==");
 
-        match verifiers.network_verifier.get_era_chain_id().await {
+        match verifiers.network_verifier.get_l2_chain_id().await {
             Some(chain_id) => {
                 if self.era_chain_id == chain_id {
                     result.report_ok("Chain id");
@@ -290,6 +315,10 @@ struct Args {
     // L2 address
     #[clap(long)]
     l2_rpc: Option<String>,
+
+    // If L2 RPC is not available, you can provide l2 chain id instead.
+    #[clap(long)]
+    l2_chain_id: Option<u64>,
 }
 
 #[tokio::main]
@@ -334,6 +363,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         verifiers
             .network_verifier
             .add_l2_network_rpc(l2_rpc.clone());
+    } else {
+        if let Some(l2_chain_id) = args.l2_chain_id {
+            verifiers.network_verifier.add_l2_chain_id(l2_chain_id);
+        }
     }
 
     if let Some(create2_tx_file) = args.create2_txs_file {
@@ -365,6 +398,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
+
+    // some constants -- TODO: verify
+    verifiers.bytecode_verifier.add_bytecode_hash(
+        FixedBytes::<32>::from_hex(
+            "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989",
+        )
+        .unwrap(),
+        "Create2Factory".to_string(),
+    );
+
+    verifiers.bytecode_verifier.add_bytecode_hash(
+        FixedBytes::<32>::from_hex(
+            "0x1d8a3e7186b2285da5ef3ccf4c63a672e91873f2ffdec522a241f72bfcab11c5",
+        )
+        .unwrap(),
+        "TransparentProxyAdmin".to_string(),
+    );
 
     let other_config = OtherConfig::init_from_config(&config);
     config.other_config = Some(other_config);
