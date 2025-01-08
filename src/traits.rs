@@ -15,11 +15,23 @@ use crate::utils::{
 
 #[derive(Default)]
 pub struct Verifiers {
+    pub testnet_contracts: bool,
+    pub bridgehub_address: Option<Address>,
     pub selector_verifier: SelectorVerifier,
     pub address_verifier: AddressVerifier,
     pub bytecode_verifier: BytecodeVerifier,
     pub network_verifier: NetworkVerifier,
     pub genesis_config: Option<GenesisConfig>,
+}
+
+impl Verifiers {
+    pub fn new(testnet_contracts: bool, bridgehub_address: Option<String>) -> Self {
+        Self {
+            testnet_contracts,
+            bridgehub_address: bridgehub_address.map(|b| Address::from_hex(b).unwrap()),
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -111,8 +123,10 @@ impl VerificationResult {
             }
             None => {
                 self.report_warn(&format!(
-                    "Cannot verify bytecode hash: {} - expected {}",
-                    bytecode_hash, expected
+                    "Cannot verify bytecode hash: {} - expected {} at {}",
+                    bytecode_hash,
+                    expected,
+                    Location::caller()
                 ));
             }
         }

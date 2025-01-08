@@ -120,42 +120,9 @@ impl ProposedUpgrade {
         }
         // TODO: analyze factory deps !!
 
-        let bootloader = verifiers
-            .bytecode_verifier
-            .bytecode_hash_to_file(&self.bootloaderHash);
-        match bootloader {
-            Some(file) => {
-                // That's how bootloader is called in the SystemContractHashes file.
-                if file != "proved_batch" {
-                    result.report_error(&format!("Invalid bootloader hash - got {}", file));
-                    errors += 1;
-                }
-            }
-            None => {
-                result.report_warn(&format!(
-                    "Cannot verify bootloader hash: {}",
-                    self.bootloaderHash
-                ));
-            }
-        }
+        result.expect_bytecode(verifiers, &self.bootloaderHash, "proved_batch.yul");
 
-        let default_account = verifiers
-            .bytecode_verifier
-            .bytecode_hash_to_file(&self.defaultAccountHash);
-        match default_account {
-            Some(file) => {
-                if file != "DefaultAccount" {
-                    result.report_error(&format!("Invalid default AA hash - got {}", file));
-                    errors += 1;
-                }
-            }
-            None => {
-                result.report_warn(&format!(
-                    "Cannot verify default AA hash: {}",
-                    self.defaultAccountHash
-                ));
-            }
-        }
+        result.expect_bytecode(verifiers, &self.defaultAccountHash, "DefaultAccount");
 
         let verifier = verifiers
             .address_verifier

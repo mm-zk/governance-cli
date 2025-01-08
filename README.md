@@ -29,6 +29,11 @@ cargo run -- --ecosystem-toml data/p2/gateway-upgrade-ecosystem.toml --l1-rpc ht
 
 For full verification of the bytecodes, you should also provide the tx_hashes file, that was computed from your broadcast file, that contains all the CREATE2 call transaction hashes.
 
+You might also want to specify the l2 chain id (or l2 RPC URL), and testnet-contracts (if deploying on testnet without proofs), and bridgehub address - for final verification.
+
+```
+cargo run -- --ecosystem-toml data/p2/gateway-upgrade-ecosystem.toml --l1-rpc http://localhost:8545 --contracts-commit d6f72275d7ab62f6970917510c8fccc7a73bf341 --era-commit 69ea2c61ae0e84da982493427bf39b6e62632de5 --create2-txs-file data/p2/tx_hashes.txt --l2-chain-id 270 --testnet-contracts --bridgehub-address 0xb244E9B485fc872e3242960b786dB5189f6A6d2A
+```
 
 
 ## Features

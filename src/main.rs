@@ -147,9 +147,22 @@ impl Verify for OtherConfig {
             )
             .await;
 
-        result
-            .expect_deployed_bytecode(verifiers, &self.bridgehub_proxy, "BridgehubProxy")
-            .await;
+        match verifiers.bridgehub_address {
+            Some(bridgehub_address) => {
+                if bridgehub_address != self.bridgehub_proxy {
+                    result.report_error(&format!(
+                        "Bridgehub address mismatch: expected {}, got {}",
+                        self.bridgehub_proxy, bridgehub_address
+                    ));
+                }
+            }
+            None => {
+                result.report_warn(&format!(
+                    "Cannot verify Bridgehub address {} - as it wasn't provided in the flags.",
+                    self.bridgehub_proxy
+                ));
+            }
+        }
 
         let bridgehub_info = verifiers
             .network_verifier
@@ -319,6 +332,13 @@ struct Args {
     // If L2 RPC is not available, you can provide l2 chain id instead.
     #[clap(long)]
     l2_chain_id: Option<u64>,
+
+    // If set - then will expect testnet contracts to be deployed (like TestnetVerifier).
+    #[clap(long)]
+    testnet_contracts: bool,
+
+    #[clap(long)]
+    bridgehub_address: Option<String>,
 }
 
 #[tokio::main]
@@ -333,7 +353,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse the YAML content
     let mut config: Config = toml::from_str(&yaml_content)?;
 
-    let mut verifiers = Verifiers::default();
+    let mut verifiers = Verifiers::new(args.testnet_contracts, args.bridgehub_address);
 
     verifiers
         .bytecode_verifier
@@ -357,6 +377,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         verifiers
             .network_verifier
             .add_l1_network_rpc(l1_rpc.clone());
+        if verifiers.testnet_contracts {
+            let chain_id = verifiers.network_verifier.get_l1_chain_id().await.unwrap();
+            if chain_id == 1 {
+                panic!("Testnet contracts are expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
+            }
+        }
     }
 
     if let Some(l2_rpc) = &args.l2_rpc {

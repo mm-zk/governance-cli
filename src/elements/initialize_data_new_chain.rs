@@ -49,7 +49,11 @@ impl InitializeDataNewChain {
             result.report_error("Verifier params must be empty.");
         }
 
-        result.expect_bytecode(verifiers, &self.l2BootloaderBytecodeHash, "bootloader");
+        result.expect_bytecode(
+            verifiers,
+            &self.l2BootloaderBytecodeHash,
+            "proved_batch.yul",
+        );
         result.expect_bytecode(
             verifiers,
             &self.l2DefaultAccountBytecodeHash,

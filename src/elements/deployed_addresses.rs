@@ -152,7 +152,11 @@ impl Verify for Bridges {
             .expect_deployed_bytecode(
                 verifiers,
                 &self.l1_nullifier_implementation_addr,
-                "L1Nullifier",
+                if verifiers.testnet_contracts {
+                    "L1NullifierDev"
+                } else {
+                    "L1Nullifier"
+                },
             )
             .await;
 
@@ -197,7 +201,15 @@ impl Verify for StateTransition {
         result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
         result
-            .expect_deployed_bytecode(verifiers, &self.verifier_addr, "Verifier")
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.verifier_addr,
+                if verifiers.testnet_contracts {
+                    "TestnetVerifier"
+                } else {
+                    "Verifier"
+                },
+            )
             .await;
 
         result
