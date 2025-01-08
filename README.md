@@ -24,9 +24,10 @@ cargo run -- --ecosystem-toml data/p2/gateway-upgrade-ecosystem.toml --l1-rpc ht
 
 You might also provide own commits - for the tool to fetch the bytecode hashes from
 ```
-cargo run -- --ecosystem-toml data/p2/gateway-upgrade-ecosystem.toml --l1-rpc http://localhost:8545 --era-commit 26cc4e4ba641f1695c52cf249e9278207d403d9d --contracts-commit 69ea2c61ae0e84da982493427bf39b6e62632de5
+cargo run -- --ecosystem-toml data/p2/gateway-upgrade-ecosystem.toml --l1-rpc http://localhost:8545 --contracts-commit 1d24f1a92970fd359ddcbf0891eb6c66946a6c82 --era-commit 69ea2c61ae0e84da982493427bf39b6e62632de5 --create2-txs-file data/p2/tx_hashes.txt
 ```
 
+For full verification of the bytecodes, you should also provide the tx_hashes file, that was computed from your broadcast file, that contains all the CREATE2 call transaction hashes.
 
 
 

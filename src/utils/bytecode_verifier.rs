@@ -29,17 +29,16 @@ impl BytecodeVerifier {
 
         let contract_hashes = ContractHashes::init_from_github(commit).await;
         for contract_hash in contract_hashes.hashes {
-            if let Some(hash) = contract_hash.evm {
-                let bytecode_hash =
-                    FixedBytes::try_from(hex::decode(&hash.bytecode_hash).unwrap().as_slice())
-                        .unwrap();
-                self.add_bytecode_hash(bytecode_hash, contract_hash.contract_name.clone());
-            }
-            if let Some(hash) = contract_hash.zk {
-                let bytecode_hash =
-                    FixedBytes::try_from(hex::decode(&hash.bytecode_hash).unwrap().as_slice())
-                        .unwrap();
-                self.add_bytecode_hash(bytecode_hash, contract_hash.contract_name.clone());
+            for maybe_hash in [
+                contract_hash.evm_bytecode_hash,
+                contract_hash.evm_deployed_bytecode_hash,
+                contract_hash.zk_bytecode_hash,
+            ] {
+                if let Some(hash) = maybe_hash {
+                    let bytecode_hash =
+                        FixedBytes::try_from(hex::decode(&hash).unwrap().as_slice()).unwrap();
+                    self.add_bytecode_hash(bytecode_hash, contract_hash.contract_name.clone());
+                }
             }
         }
     }
@@ -79,17 +78,15 @@ impl SystemContractHashes {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VMHash {
-    #[serde(rename = "bytecodeHash")]
-    pub bytecode_hash: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractHash {
     #[serde(rename = "contractName")]
     pub contract_name: String,
-    pub evm: Option<VMHash>,
-    pub zk: Option<VMHash>,
+    #[serde(rename = "evmBytecodeHash")]
+    pub evm_bytecode_hash: Option<String>,
+    #[serde(rename = "evmDeployedBytecodeHash")]
+    pub evm_deployed_bytecode_hash: Option<String>,
+    #[serde(rename = "zkBytecodeHash")]
+    pub zk_bytecode_hash: Option<String>,
 }
 
 #[derive(Debug)]

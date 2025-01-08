@@ -97,7 +97,7 @@ impl Verify for DeployedAddresses {
             .expect_deployed_proxy_with_bytecode(
                 verifiers,
                 &self.native_token_vault_addr,
-                "NativeTokenVault.sol",
+                "L1NativeTokenVault",
             )
             .await;
 
@@ -121,7 +121,7 @@ impl Verify for DeployedAddresses {
             .expect_deployed_proxy_with_bytecode(
                 verifiers,
                 &self.bridgehub.ctm_deployment_tracker_proxy_addr,
-                "CtmDeploymentTrackerProxy.sol",
+                "CTMDeploymentTracker",
             )
             .await;
 
@@ -144,7 +144,7 @@ impl Verify for Bridges {
             .expect_deployed_proxy_with_bytecode(
                 verifiers,
                 &self.shared_bridge_proxy_addr,
-                "SharedBridgeProxy.sol",
+                "L1AssetRouter",
             )
             .await;
 
@@ -160,7 +160,7 @@ impl Verify for Bridges {
             .expect_deployed_bytecode(
                 verifiers,
                 &self.erc20_bridge_implementation_addr,
-                "ERC20Bridge",
+                "L1ERC20Bridge",
             )
             .await;
 
@@ -183,11 +183,7 @@ impl Verify for Bridgehub {
             .await;
 
         result
-            .expect_deployed_bytecode(
-                verifiers,
-                &self.bridgehub_implementation_addr,
-                "BridgehubImplementation",
-            )
+            .expect_deployed_bytecode(verifiers, &self.bridgehub_implementation_addr, "Bridgehub")
             .await;
 
         Ok(())
@@ -208,7 +204,7 @@ impl Verify for StateTransition {
             .expect_deployed_bytecode(
                 verifiers,
                 &self.state_transition_implementation_addr,
-                "StateTransitionImpl",
+                "ChainTypeManager",
             )
             .await;
         result

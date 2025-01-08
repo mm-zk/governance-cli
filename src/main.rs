@@ -1,4 +1,7 @@
-use alloy::{hex::ToHexExt, primitives::Address};
+use alloy::{
+    hex::{FromHex, ToHexExt},
+    primitives::{Address, FixedBytes},
+};
 use serde::Deserialize;
 use std::{fmt::Debug, fs};
 use traits::{GenesisConfig, VerificationResult, Verifiers, Verify};
@@ -267,6 +270,11 @@ struct Args {
     #[clap(short, long)]
     ecosystem_toml: String,
 
+    /// File with all the create2 transactions
+    // Used to determine the bytecode hash of the contracts.
+    #[clap(short, long)]
+    create2_txs_file: Option<String>,
+
     // Commit from zksync-era repository (used for genesis verification)
     #[clap(long)]
     era_commit: Option<String>,
@@ -302,15 +310,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .bytecode_verifier
         .init_from_github(
             &args
-                .era_commit
-                .unwrap_or("26cc4e4ba641f1695c52cf249e9278207d403d9d".to_string()),
+                .contracts_commit
+                .unwrap_or("1d24f1a92970fd359ddcbf0891eb6c66946a6c82".to_string()),
         )
         .await;
 
     verifiers.genesis_config = Some(
         GenesisConfig::init_from_github(
             &args
-                .contracts_commit
+                .era_commit
                 .unwrap_or("69ea2c61ae0e84da982493427bf39b6e62632de5".to_string()),
         )
         .await,
@@ -328,11 +336,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .add_l2_network_rpc(l2_rpc.clone());
     }
 
+    if let Some(create2_tx_file) = args.create2_txs_file {
+        let create2_txs_content = fs::read_to_string(create2_tx_file)?;
+        let create2_txs_lines: Vec<String> = create2_txs_content
+            .lines()
+            .map(|line| line.to_string())
+            .collect();
+
+        println!(
+            "Adding {} transactions from create2",
+            create2_txs_lines.len()
+        );
+
+        for line in create2_txs_lines {
+            if let Some((address, hashes)) = verifiers
+                .network_verifier
+                .check_crate2_deploy(
+                    &line,
+                    &config.create2_factory_addr,
+                    &FixedBytes::<32>::from_hex(&config.create2_factory_salt).unwrap(),
+                )
+                .await
+            {
+                verifiers
+                    .network_verifier
+                    .create2_aliases
+                    .insert(address, hashes.into());
+            }
+        }
+    }
+
     let other_config = OtherConfig::init_from_config(&config);
-
-    //let other_yaml_content = fs::read_to_string("data/p2/other.toml")?;
-    //let other_config: OtherConfig = toml::from_str(&other_yaml_content)?;
-
     config.other_config = Some(other_config);
 
     let mut result = VerificationResult::default();
