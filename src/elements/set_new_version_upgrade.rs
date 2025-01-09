@@ -122,7 +122,11 @@ impl ProposedUpgrade {
 
         result.expect_bytecode(verifiers, &self.bootloaderHash, "proved_batch.yul");
 
-        result.expect_bytecode(verifiers, &self.defaultAccountHash, "DefaultAccount");
+        result.expect_bytecode(
+            verifiers,
+            &self.defaultAccountHash,
+            "system-contracts/DefaultAccount",
+        );
 
         let verifier = verifiers
             .address_verifier

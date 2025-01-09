@@ -241,7 +241,7 @@ impl VerificationResult {
             .expect_deployed_bytecode_internal(
                 verifiers,
                 address,
-                "TransparentUpgradeableProxy",
+                "l1-contracts/TransparentUpgradeableProxy",
                 false,
             )
             .await;

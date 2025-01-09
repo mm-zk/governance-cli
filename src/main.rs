@@ -39,6 +39,8 @@ struct Config {
     #[allow(dead_code)]
     owner_address: String,
 
+    transactions: Vec<String>,
+
     other_config: Option<OtherConfig>,
 }
 
@@ -133,11 +135,19 @@ impl Verify for OtherConfig {
         result.print_info("== Other config verification ==");
 
         result
-            .expect_deployed_bytecode(verifiers, &self.rollup_da_manager, "RollupDAManager")
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.rollup_da_manager,
+                "l1-contracts/RollupDAManager",
+            )
             .await;
 
         result
-            .expect_deployed_bytecode(verifiers, &self.upgrade_timer, "GovernanceUpgradeTimer")
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.upgrade_timer,
+                "l1-contracts/GovernanceUpgradeTimer",
+            )
             .await;
         result
             .expect_deployed_bytecode(
@@ -304,14 +314,9 @@ pub fn address_eq(address: &Address, addr_string: &String) -> bool {
 
 #[derive(Debug, Parser)]
 struct Args {
-    // ecosystem_toml file (gateway-upgrade-ecosystem.toml)
+    // ecosystem_yaml file (gateway_ecosystem_upgrade_output.yaml - from zksync_era/configs)
     #[clap(short, long)]
-    ecosystem_toml: String,
-
-    /// File with all the create2 transactions
-    // Used to determine the bytecode hash of the contracts.
-    #[clap(short, long)]
-    create2_txs_file: Option<String>,
+    ecosystem_yaml: String,
 
     // Commit from zksync-era repository (used for genesis verification)
     #[clap(long)]
@@ -348,10 +353,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     // Read the YAML file
-    let yaml_content = fs::read_to_string(args.ecosystem_toml)?;
+    let yaml_content = fs::read_to_string(args.ecosystem_yaml)?;
 
     // Parse the YAML content
-    let mut config: Config = toml::from_str(&yaml_content)?;
+    let mut config: Config = serde_yaml::from_str(&yaml_content)?;
 
     let mut verifiers = Verifiers::new(args.testnet_contracts, args.bridgehub_address);
 
@@ -360,7 +365,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init_from_github(
             &args
                 .contracts_commit
-                .unwrap_or("1d24f1a92970fd359ddcbf0891eb6c66946a6c82".to_string()),
+                .unwrap_or("2cc0621acf3ccd0536bfd01999727753d1447931".to_string()),
         )
         .await;
 
@@ -368,7 +373,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         GenesisConfig::init_from_github(
             &args
                 .era_commit
-                .unwrap_or("69ea2c61ae0e84da982493427bf39b6e62632de5".to_string()),
+                .unwrap_or("0efe1db5126bc2d2b0702a1404f7eb0ca0231ef0".to_string()),
         )
         .await,
     );
@@ -395,33 +400,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    if let Some(create2_tx_file) = args.create2_txs_file {
-        let create2_txs_content = fs::read_to_string(create2_tx_file)?;
-        let create2_txs_lines: Vec<String> = create2_txs_content
-            .lines()
-            .map(|line| line.to_string())
-            .collect();
+    println!(
+        "Adding {} transactions from create2",
+        config.transactions.len()
+    );
 
-        println!(
-            "Adding {} transactions from create2",
-            create2_txs_lines.len()
-        );
-
-        for line in create2_txs_lines {
-            if let Some((address, hashes)) = verifiers
+    for transaction in &config.transactions {
+        if let Some((address, hashes)) = verifiers
+            .network_verifier
+            .check_crate2_deploy(
+                &transaction,
+                &config.create2_factory_addr,
+                &FixedBytes::<32>::from_hex(&config.create2_factory_salt).unwrap(),
+            )
+            .await
+        {
+            verifiers
                 .network_verifier
-                .check_crate2_deploy(
-                    &line,
-                    &config.create2_factory_addr,
-                    &FixedBytes::<32>::from_hex(&config.create2_factory_salt).unwrap(),
-                )
-                .await
-            {
-                verifiers
-                    .network_verifier
-                    .create2_aliases
-                    .insert(address, hashes.into());
-            }
+                .create2_aliases
+                .insert(address, hashes.into());
         }
     }
 

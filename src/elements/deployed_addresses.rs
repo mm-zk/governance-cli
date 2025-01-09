@@ -97,7 +97,7 @@ impl Verify for DeployedAddresses {
             .expect_deployed_proxy_with_bytecode(
                 verifiers,
                 &self.native_token_vault_addr,
-                "L1NativeTokenVault",
+                "l1-contracts/L1NativeTokenVault",
             )
             .await;
 
@@ -105,7 +105,7 @@ impl Verify for DeployedAddresses {
             .expect_deployed_bytecode(
                 verifiers,
                 &self.validator_timelock_addr,
-                "ValidatorTimelock",
+                "l1-contracts/ValidatorTimelock",
             )
             .await;
 
@@ -113,7 +113,7 @@ impl Verify for DeployedAddresses {
             .expect_deployed_bytecode(
                 verifiers,
                 &self.l2_wrapped_base_token_store_addr,
-                "L2WrappedBaseTokenStore",
+                "l1-contracts/L2WrappedBaseTokenStore",
             )
             .await;
 
@@ -121,7 +121,7 @@ impl Verify for DeployedAddresses {
             .expect_deployed_proxy_with_bytecode(
                 verifiers,
                 &self.bridgehub.ctm_deployment_tracker_proxy_addr,
-                "CTMDeploymentTracker",
+                "l1-contracts/CTMDeploymentTracker",
             )
             .await;
 
@@ -144,7 +144,7 @@ impl Verify for Bridges {
             .expect_deployed_proxy_with_bytecode(
                 verifiers,
                 &self.shared_bridge_proxy_addr,
-                "L1AssetRouter",
+                "l1-contracts/L1AssetRouter",
             )
             .await;
 
@@ -153,9 +153,9 @@ impl Verify for Bridges {
                 verifiers,
                 &self.l1_nullifier_implementation_addr,
                 if verifiers.testnet_contracts {
-                    "L1NullifierDev"
+                    "l1-contracts/L1NullifierDev"
                 } else {
-                    "L1Nullifier"
+                    "l1-contracts/L1Nullifier"
                 },
             )
             .await;
@@ -164,7 +164,7 @@ impl Verify for Bridges {
             .expect_deployed_bytecode(
                 verifiers,
                 &self.erc20_bridge_implementation_addr,
-                "L1ERC20Bridge",
+                "l1-contracts/L1ERC20Bridge",
             )
             .await;
 
@@ -182,12 +182,16 @@ impl Verify for Bridgehub {
             .expect_deployed_proxy_with_bytecode(
                 verifiers,
                 &self.ctm_deployment_tracker_proxy_addr,
-                "CTMDeploymentTracker",
+                "l1-contracts/CTMDeploymentTracker",
             )
             .await;
 
         result
-            .expect_deployed_bytecode(verifiers, &self.bridgehub_implementation_addr, "Bridgehub")
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.bridgehub_implementation_addr,
+                "l1-contracts/Bridgehub",
+            )
             .await;
 
         Ok(())
@@ -205,9 +209,9 @@ impl Verify for StateTransition {
                 verifiers,
                 &self.verifier_addr,
                 if verifiers.testnet_contracts {
-                    "TestnetVerifier"
+                    "l1-contracts/TestnetVerifier"
                 } else {
-                    "Verifier"
+                    "l1-contracts/Verifier"
                 },
             )
             .await;
@@ -216,30 +220,54 @@ impl Verify for StateTransition {
             .expect_deployed_bytecode(
                 verifiers,
                 &self.state_transition_implementation_addr,
-                "ChainTypeManager",
+                "l1-contracts/ChainTypeManager",
             )
             .await;
         result
-            .expect_deployed_bytecode(verifiers, &self.genesis_upgrade_addr, "L1GenesisUpgrade")
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.genesis_upgrade_addr,
+                "l1-contracts/L1GenesisUpgrade",
+            )
             .await;
 
         result
-            .expect_deployed_bytecode(verifiers, &self.admin_facet_addr, "AdminFacet")
+            .expect_deployed_bytecode(verifiers, &self.admin_facet_addr, "l1-contracts/AdminFacet")
             .await;
         result
-            .expect_deployed_bytecode(verifiers, &self.default_upgrade_addr, "DefaultUpgrade")
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.default_upgrade_addr,
+                "l1-contracts/DefaultUpgrade",
+            )
             .await;
         result
-            .expect_deployed_bytecode(verifiers, &self.diamond_init_addr, "DiamondInit")
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.diamond_init_addr,
+                "l1-contracts/DiamondInit",
+            )
             .await;
         result
-            .expect_deployed_bytecode(verifiers, &self.executor_facet_addr, "ExecutorFacet")
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.executor_facet_addr,
+                "l1-contracts/ExecutorFacet",
+            )
             .await;
         result
-            .expect_deployed_bytecode(verifiers, &self.getters_facet_addr, "GettersFacet")
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.getters_facet_addr,
+                "l1-contracts/GettersFacet",
+            )
             .await;
         result
-            .expect_deployed_bytecode(verifiers, &self.mailbox_facet_addr, "MailboxFacet")
+            .expect_deployed_bytecode(
+                verifiers,
+                &self.mailbox_facet_addr,
+                "l1-contracts/MailboxFacet",
+            )
             .await;
 
         Ok(())

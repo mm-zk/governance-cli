@@ -57,7 +57,7 @@ impl InitializeDataNewChain {
         result.expect_bytecode(
             verifiers,
             &self.l2DefaultAccountBytecodeHash,
-            "DefaultAccount",
+            "system-contracts/DefaultAccount",
         );
 
         if self.priorityTxMaxGasLimit != U256::from(72_000_000) {
