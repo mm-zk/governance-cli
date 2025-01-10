@@ -150,11 +150,7 @@ impl Verify for Bridges {
             .expect_deployed_bytecode(
                 verifiers,
                 &self.l1_nullifier_implementation_addr,
-                if verifiers.testnet_contracts {
-                    "l1-contracts/L1NullifierDev"
-                } else {
-                    "l1-contracts/L1Nullifier"
-                },
+                "l1-contracts/L1Nullifier",
             )
             .await;
 
