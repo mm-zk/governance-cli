@@ -143,10 +143,7 @@ impl Verify for GovernanceStage2Calls {
                 "state_transition_manager",
                 "setChainCreationParams((address,bytes32,uint64,bytes32,((address,uint8,bool,bytes4[])[],address,bytes),bytes))",
             ),
-            (
-                "state_transition_manager",
-                "setValidatorTimelock(address)",
-            ),
+
             (
                 "bridgehub_proxy",
                 "setAddresses(address,address,address)",
@@ -221,14 +218,7 @@ impl Verify for GovernanceStage2Calls {
 
         {
             let decoded =
-                setValidatorTimelockCall::abi_decode(&self.calls.elems[5].data, true).unwrap();
-
-            result.expect_address(verifiers, &decoded.addr, "validator_timelock");
-        }
-
-        {
-            let decoded =
-                singleAddressArgumentCall::abi_decode_raw(&self.calls.elems[7].data[4..], true)
+                singleAddressArgumentCall::abi_decode_raw(&self.calls.elems[6].data[4..], true)
                     .unwrap();
 
             result.expect_address(verifiers, &decoded.addr, "native_token_vault");
@@ -236,7 +226,7 @@ impl Verify for GovernanceStage2Calls {
 
         {
             let decoded =
-                singleAddressArgumentCall::abi_decode_raw(&self.calls.elems[8].data[4..], true)
+                singleAddressArgumentCall::abi_decode_raw(&self.calls.elems[7].data[4..], true)
                     .unwrap();
 
             result.expect_address(verifiers, &decoded.addr, "shared_bridge_proxy");
@@ -244,7 +234,7 @@ impl Verify for GovernanceStage2Calls {
 
         {
             let decoded = setProtocolVersionDeadlineCall::abi_decode_raw(
-                &self.calls.elems[9].data[4..],
+                &self.calls.elems[8].data[4..],
                 true,
             )
             .unwrap();

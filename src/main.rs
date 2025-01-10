@@ -97,14 +97,14 @@ impl OtherConfig {
         let rollup_da_manager = CallList::parse(&config.governance_stage1_calls).elems[3].target;
         let state_transition_manager =
             CallList::parse(&config.governance_stage1_calls).elems[4].target;
-        let upgrade_timer = CallList::parse(&config.governance_stage1_calls).elems[5].target;
+        let upgrade_timer = CallList::parse(&config.governance_stage1_calls).elems[6].target;
 
         let transparent_proxy_admin =
             CallList::parse(&config.governance_stage2_calls).elems[0].target;
 
-        let bridgehub_proxy = CallList::parse(&config.governance_stage2_calls).elems[6].target;
+        let bridgehub_proxy = CallList::parse(&config.governance_stage2_calls).elems[5].target;
         let old_shared_bridge_proxy =
-            CallList::parse(&config.governance_stage2_calls).elems[7].target;
+            CallList::parse(&config.governance_stage2_calls).elems[6].target;
 
         let legacy_erc20_bridge = Address::from_slice(
             &CallList::parse(&config.governance_stage2_calls).elems[3].data[16..36],
@@ -365,7 +365,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init_from_github(
             &args
                 .contracts_commit
-                .unwrap_or("2cc0621acf3ccd0536bfd01999727753d1447931".to_string()),
+                .unwrap_or("3d73e064c2371ef32edfdbcf9c199e4c85b0fd7e".to_string()),
         )
         .await;
 

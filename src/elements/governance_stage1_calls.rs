@@ -8,7 +8,10 @@ use crate::{
     traits::Verify,
 };
 
-use super::{call_list::CallList, set_new_version_upgrade::setNewVersionUpgradeCall};
+use super::{
+    call_list::CallList, governance_stage2_calls::setValidatorTimelockCall,
+    set_new_version_upgrade::setNewVersionUpgradeCall,
+};
 
 pub struct GovernanceStage1Calls {
     pub calls: CallList,
@@ -29,6 +32,10 @@ impl Verify for GovernanceStage1Calls {
             ("rollup_da_manager", "acceptOwnership()"),
             ("state_transition_manager",
             "setNewVersionUpgrade(((address,uint8,bool,bytes4[])[],address,bytes),uint256,uint256,uint256)"),
+            (
+                "state_transition_manager",
+                "setValidatorTimelock(address)",
+            ),
             ("upgrade_timer", "startTimer()"),
 
         ];
@@ -41,6 +48,13 @@ impl Verify for GovernanceStage1Calls {
         let data = setNewVersionUpgradeCall::abi_decode(calldata, true).unwrap();
 
         //println!("Call: {:?} ", data.diamondCut);
+
+        {
+            let decoded =
+                setValidatorTimelockCall::abi_decode(&self.calls.elems[5].data, true).unwrap();
+
+            result.expect_address(verifiers, &decoded.addr, "validator_timelock");
+        }
 
         let deadline = UpgradeDeadline {
             deadline: data.oldProtocolVersionDeadline,
