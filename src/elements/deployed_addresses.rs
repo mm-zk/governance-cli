@@ -14,14 +14,12 @@ pub struct DeployedAddresses {
 
 #[derive(Debug, Deserialize)]
 pub struct Bridges {
-    // TODO: fill other addresses & verify what's inside
     shared_bridge_proxy_addr: Address,
     pub l1_nullifier_implementation_addr: Address,
     pub erc20_bridge_implementation_addr: Address,
 }
 #[derive(Debug, Deserialize)]
 pub struct Bridgehub {
-    // TODO: fill other addresses & verify what's inside
     ctm_deployment_tracker_proxy_addr: Address,
     bridgehub_implementation_addr: Address,
 }

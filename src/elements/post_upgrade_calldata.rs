@@ -248,7 +248,6 @@ impl PostUpgradeCalldata {
                 ),
                 // Now we're entereing the upgrade specific territory
                 (
-                    // TODO: why do we re-deploy this?
                     "l1-contracts/L2SharedBridgeLegacy",
                     compute_expected_address_for_file(
                         verifiers,
@@ -257,7 +256,6 @@ impl PostUpgradeCalldata {
                     true,
                 ),
                 (
-                    // TODO: why do we redeploy this?
                     "l1-contracts/BridgedStandardERC20",
                     compute_expected_address_for_file(
                         verifiers,
