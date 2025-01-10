@@ -4,6 +4,8 @@ use alloy::primitives::{keccak256, Address, Bytes, FixedBytes, TxHash, U256};
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::sol;
 
+use super::compute_create2_address_evm;
+
 sol! {
     #[sol(rpc)]
     contract Bridgehub {
@@ -191,10 +193,6 @@ impl NetworkVerifier {
                 }
             }
             // Compute address
-            let mut address_payload = vec![0xff as u8];
-            let destination = tx.to().unwrap();
-
-            address_payload.extend_from_slice(destination.as_slice());
 
             let salt = &tx.input()[0..32];
             if salt != expected_create2_salt.as_slice() {
@@ -202,13 +200,15 @@ impl NetworkVerifier {
                 return None;
             }
 
-            // Extract salt
-            address_payload.extend_from_slice(&tx.input()[0..32]);
             // And hash the rest.
-            address_payload.extend_from_slice(&keccak256(&tx.input()[32..]).0);
 
             // compute create2 address
-            let address = Address::from_slice(&keccak256(address_payload).0[12..]);
+            let address = compute_create2_address_evm(
+                tx.to().unwrap(),
+                salt.try_into().unwrap(),
+                keccak256(&tx.input()[32..]).0.into(),
+            );
+
             Some((address, hashes))
         } else {
             None
