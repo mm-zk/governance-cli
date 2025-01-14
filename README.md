@@ -24,7 +24,7 @@ cargo run -- --ecosystem-yaml data/gateway_ecosystem_upgrade_output.yaml  --l1-r
 
 You might also provide own commits - for the tool to fetch the bytecode hashes from
 ```
-cargo run -- --ecosystem-yaml data/gateway_ecosystem_upgrade_output.yaml  --l1-rpc http://localhost:8545 --contracts-commit 1d24f1a92970fd359ddcbf0891eb6c66946a6c82 --era-commit 69ea2c61ae0e84da982493427bf39b6e62632de5 --create2-txs-file data/p2/tx_hashes.txt
+cargo run -- --ecosystem-yaml data/gateway_ecosystem_upgrade_output.yaml  --l1-rpc http://localhost:8545 --contracts-commit 1d24f1a92970fd359ddcbf0891eb6c66946a6c82 --era-commit 69ea2c61ae0e84da982493427bf39b6e62632de5
 ```
 
 You might also want to specify the l2 chain id (or l2 RPC URL), and testnet-contracts (if deploying on testnet without proofs), and bridgehub address - for final verification.
