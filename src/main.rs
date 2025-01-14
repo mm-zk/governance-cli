@@ -1,5 +1,5 @@
 use alloy::{
-    hex::{FromHex, ToHexExt},
+    hex::{self, FromHex, ToHexExt},
     primitives::{Address, FixedBytes},
 };
 use serde::Deserialize;
@@ -134,21 +134,21 @@ impl Verify for OtherConfig {
     ) -> anyhow::Result<()> {
         result.print_info("== Other config verification ==");
 
-        result
-            .expect_deployed_bytecode(
-                verifiers,
-                &self.rollup_da_manager,
-                "l1-contracts/RollupDAManager",
-            )
-            .await;
+        // result
+        //     .expect_create2_params(
+        //         verifiers,
+        //         &self.rollup_da_manager,
+        //         "l1-contracts/RollupDAManager",
+        //     )
+        //     .await;
 
-        result
-            .expect_deployed_bytecode(
-                verifiers,
-                &self.upgrade_timer,
-                "l1-contracts/GovernanceUpgradeTimer",
-            )
-            .await;
+        // result
+        //     .expect_create2_params(
+        //         verifiers,
+        //         &self.upgrade_timer,
+        //         "l1-contracts/GovernanceUpgradeTimer",
+        //     )
+        //     .await;
 
         match verifiers.bridgehub_address {
             Some(bridgehub_address) => {
@@ -262,7 +262,7 @@ impl Verify for Config {
             }
         }
         // Check that addresses actually contain correct bytecodes.
-        self.deployed_addresses.verify(verifiers, result).await?;
+        self.deployed_addresses.verify(&self, verifiers, result).await?;
 
         result
             .expect_deployed_bytecode(verifiers, &self.create2_factory_addr, "Create2Factory")
@@ -399,7 +399,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     for transaction in &config.transactions {
-        if let Some((contract, constructor_param)) = verifiers
+        if let Some((address, contract, constructor_param)) = verifiers
             .network_verifier
             .check_create2_deploy(
                 &transaction,
@@ -411,13 +411,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await
         {
             verifiers
-                .bytecode_verifier
-                .bytecode_file_to_constructor_params
-                .insert(contract.clone(), constructor_param)
+                .network_verifier
+                .create2_constructor_params
+                .insert(address, constructor_param)
                 .map(|_| {
-                    panic!("Duplicate deployment for {:#?}", contract);
-                })
-                .unwrap();
+                    panic!("Duplicate deployment for {:#?}", address);
+                });
+
+            verifiers
+                .network_verifier.create2_known_bytecodes.insert(address, contract.clone())
+                .map(|_| {
+                    panic!("Duplicate deployment for {:#?}", address);
+                });
         }
     }
 

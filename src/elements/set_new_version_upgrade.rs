@@ -1,4 +1,4 @@
-use alloy::{primitives::{ruint::aliases::U256, U256}, sol};
+use alloy::{primitives::ruint::aliases::U256, sol};
 
 use crate::utils::address_verifier::FixedAddresses;
 

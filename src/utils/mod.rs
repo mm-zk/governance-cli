@@ -86,7 +86,6 @@ pub fn compute_hash_with_arguments(
     if input.len() < (num_arguments + 2) * 32 {
         None
     } else {
-        let after_32_bytes = &input[32..input.len() - 32 * num_arguments];
-        Some(keccak256(after_32_bytes))
+        Some(keccak256(&input[0..input.len() - 32 * num_arguments]))
     }
 }
