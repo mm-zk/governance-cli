@@ -177,38 +177,41 @@ impl Verify for OtherConfig {
         let bridgehub_info = verifiers
             .network_verifier
             .get_bridgehub_info(self.bridgehub_proxy.clone())
-            .await
-            .unwrap();
+            .await;
 
-        match bridgehub_info.stm_address {
-            Some(stm_address) => {
-                if stm_address != self.state_transition_manager {
-                    result.report_error(&format!(
-                        "Bridgehub STM mismatch: expected {}, got {}",
-                        self.state_transition_manager, stm_address
+        if let Some(bridgehub_info) = bridgehub_info {
+            match bridgehub_info.stm_address {
+                Some(stm_address) => {
+                    if stm_address != self.state_transition_manager {
+                        result.report_error(&format!(
+                            "Bridgehub STM mismatch: expected {}, got {}",
+                            self.state_transition_manager, stm_address
+                        ));
+                    }
+                }
+                None => {
+                    result.report_warn(&format!(
+                        "Cannot verify STM address {} - as L2 RPC is not provided.",
+                        self.state_transition_manager
                     ));
                 }
             }
-            None => {
-                result.report_warn(&format!(
-                    "Cannot verify STM address {} - as L2 RPC is not provided.",
-                    self.state_transition_manager
+
+            if bridgehub_info.shared_bridge != self.old_shared_bridge_proxy {
+                result.report_error(&format!(
+                    "Bridgehub shared bridge mismatch: expected {}, got {}",
+                    self.old_shared_bridge_proxy, bridgehub_info.shared_bridge
                 ));
             }
-        }
 
-        if bridgehub_info.shared_bridge != self.old_shared_bridge_proxy {
-            result.report_error(&format!(
-                "Bridgehub shared bridge mismatch: expected {}, got {}",
-                self.old_shared_bridge_proxy, bridgehub_info.shared_bridge
-            ));
-        }
-
-        if bridgehub_info.legacy_bridge != self.legacy_erc20_bridge {
-            result.report_error(&format!(
-                "Bridgehub legacy bridge mismatch: expected {}, got {}",
-                self.legacy_erc20_bridge, bridgehub_info.legacy_bridge
-            ));
+            if bridgehub_info.legacy_bridge != self.legacy_erc20_bridge {
+                result.report_error(&format!(
+                    "Bridgehub legacy bridge mismatch: expected {}, got {}",
+                    self.legacy_erc20_bridge, bridgehub_info.legacy_bridge
+                ));
+            }
+        } else {
+            result.report_warn("Cannot verify Bridgehub info - no l1 connection provided.");
         }
 
         /*

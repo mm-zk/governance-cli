@@ -1,4 +1,9 @@
-use alloy::{primitives::U256, sol};
+use std::collections::HashSet;
+
+use alloy::{
+    primitives::{FixedBytes, U256},
+    sol,
+};
 
 use crate::utils::address_verifier::FixedAddresses;
 
@@ -94,6 +99,50 @@ sol! {
 
 impl upgradeCall {}
 
+const EXPECTED_BYTECODES: [&str; 41] = [
+    "CodeOracle.yul",
+    "EcAdd.yul",
+    "EcMul.yul",
+    "EcPairing.yul",
+    "Ecrecover.yul",
+    "EventWriter.yul",
+    "Keccak256.yul",
+    "P256Verify.yul",
+    "SHA256.yul",
+    "proved_batch.yul",
+    "l1-contracts/BeaconProxy",
+    "l1-contracts/BridgedStandardERC20",
+    "l1-contracts/Bridgehub",
+    "l1-contracts/L2AssetRouter",
+    "l1-contracts/L2NativeTokenVault",
+    "l1-contracts/L2SharedBridgeLegacy",
+    "l1-contracts/L2WrappedBaseToken",
+    "l1-contracts/MessageRoot",
+    "l1-contracts/UpgradeableBeacon",
+    "l2-contracts/RollupL2DAValidator",
+    "l2-contracts/ValidiumL2DAValidator",
+    "system-contracts/AccountCodeStorage",
+    "system-contracts/BootloaderUtilities",
+    "system-contracts/ComplexUpgrader",
+    "system-contracts/Compressor",
+    "system-contracts/ContractDeployer",
+    "system-contracts/Create2Factory",
+    "system-contracts/DefaultAccount",
+    "system-contracts/EmptyContract",
+    "system-contracts/ImmutableSimulator",
+    "system-contracts/KnownCodesStorage",
+    "system-contracts/L1Messenger",
+    "system-contracts/L2BaseToken",
+    "system-contracts/L2GatewayUpgrade",
+    "system-contracts/L2GenesisUpgrade",
+    "system-contracts/MsgValueSimulator",
+    "system-contracts/NonceHolder",
+    "system-contracts/PubdataChunkPublisher",
+    "system-contracts/SloadContract",
+    "system-contracts/SystemContext",
+    "system-contracts/TransparentUpgradeableProxy",
+];
+
 impl ProposedUpgrade {
     pub async fn verify_transaction(
         &self,
@@ -118,7 +167,88 @@ impl ProposedUpgrade {
             result.report_error("Invalid to");
             errors += 1;
         }
-        // TODO: analyze factory deps !!
+        if tx.gasLimit != U256::from(72_000_000) {
+            result.report_error("Invalid gasLimit");
+            errors += 1;
+        }
+        if tx.gasPerPubdataByteLimit != U256::from(800) {
+            result.report_error("Invalid gasPerPubdataByteLimit");
+            errors += 1;
+        }
+        if tx.maxFeePerGas != U256::from(0) {
+            result.report_error("Invalid maxFeePerGas");
+            errors += 1;
+        }
+        if tx.maxPriorityFeePerGas != U256::from(0) {
+            result.report_error("Invalid maxPriorityFeePerGas");
+            errors += 1;
+        }
+        if tx.paymaster != U256::from(0) {
+            result.report_error("Invalid paymaster");
+            errors += 1;
+        }
+        if tx.value != U256::from(0) {
+            result.report_error("Invalid value");
+            errors += 1;
+        }
+        if tx.reserved != [U256::from(0); 4] {
+            result.report_error("Invalid reserved");
+            errors += 1;
+        }
+        if tx.data.len() != 0 {
+            result.report_error("Invalid data");
+            errors += 1;
+        }
+        if tx.paymasterInput.len() != 0 {
+            result.report_error("Invalid paymasterInput");
+            errors += 1;
+        }
+        if tx.reservedDynamic.len() != 0 {
+            result.report_error("Invalid reservedDynamic");
+            errors += 1;
+        }
+
+        let deps = tx
+            .factoryDeps
+            .iter()
+            .map(|dep| FixedBytes::<32>::from_slice(&dep.to_be_bytes::<32>()))
+            .collect::<Vec<_>>();
+
+        let mut expected_bytecodes: HashSet<&str> = EXPECTED_BYTECODES.into();
+
+        for dep in deps {
+            let file_name = verifiers.bytecode_verifier.bytecode_hash_to_file(&dep);
+            match file_name {
+                Some(file_name) => {
+                    if !expected_bytecodes.contains(&file_name.as_str()) {
+                        result.report_error(&format!(
+                            "Unexpected dependency in factory deps: {}",
+                            file_name
+                        ));
+                        errors += 1;
+                    } else {
+                        expected_bytecodes.remove(&file_name.as_str());
+                    }
+                }
+                None => {
+                    result.report_error(&format!(
+                        "Invalid dependency in factory deps - cannot find file for hash: {:?}",
+                        dep
+                    ));
+                    errors += 1;
+                }
+            }
+        }
+        if expected_bytecodes.len() > 0 {
+            result.report_error(&format!(
+                "Missing dependencies in factory deps: {:?}",
+                expected_bytecodes
+            ));
+            errors += 1;
+        }
+        if errors == 0 {
+            result.report_ok("Upgrade transaction & factory deps are correct");
+        }
 
         result.expect_bytecode(verifiers, &self.bootloaderHash, "proved_batch.yul");
 
