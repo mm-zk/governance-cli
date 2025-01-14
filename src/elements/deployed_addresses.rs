@@ -7,6 +7,14 @@ pub struct DeployedAddresses {
     native_token_vault_addr: Address,
     validator_timelock_addr: Address,
     l2_wrapped_base_token_store_addr: Address,
+    // FIXME: verify that the contract is correct
+    l1_bytecodes_supplier_addr: Address,
+    // FIXME: verify that the following contract is correct.
+    rollup_l1_da_validator_addr: Address,
+    // FIXME: verify that the following contract is correct.
+    validium_l1_da_validator_addr: Address,
+    // FIXME: verify that the following contract is correct.
+    l1_transitionary_owner: Address,
     bridges: Bridges,
     bridgehub: Bridgehub,
     state_transition: StateTransition,
@@ -17,11 +25,15 @@ pub struct Bridges {
     shared_bridge_proxy_addr: Address,
     pub l1_nullifier_implementation_addr: Address,
     pub erc20_bridge_implementation_addr: Address,
+    // FIXME: verify the contents of this contract.
+    pub bridged_standard_erc20_impl: Address,
 }
 #[derive(Debug, Deserialize)]
 pub struct Bridgehub {
     ctm_deployment_tracker_proxy_addr: Address,
     bridgehub_implementation_addr: Address,
+    // FIXME: verify that the contents of this contract are correct.
+    message_root_proxy_addr: Address,
 }
 
 #[derive(Debug, Deserialize)]
@@ -91,6 +103,7 @@ impl Verify for DeployedAddresses {
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
+        // FIXME: check constructor params for all the contracts below
         result
             .expect_deployed_proxy_with_bytecode(
                 verifiers,
@@ -138,6 +151,7 @@ impl Verify for Bridges {
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
+        // FIXME: constructor params?
         result
             .expect_deployed_proxy_with_bytecode(
                 verifiers,
@@ -172,6 +186,7 @@ impl Verify for Bridgehub {
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
+        // FIXME: constructor params?
         result
             .expect_deployed_proxy_with_bytecode(
                 verifiers,
@@ -198,6 +213,7 @@ impl Verify for StateTransition {
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
+        // FIXME: constructor params?
         result
             .expect_deployed_bytecode(
                 verifiers,

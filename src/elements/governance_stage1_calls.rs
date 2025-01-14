@@ -47,8 +47,6 @@ impl Verify for GovernanceStage1Calls {
         let calldata = &self.calls.elems[4].data;
         let data = setNewVersionUpgradeCall::abi_decode(calldata, true).unwrap();
 
-        //println!("Call: {:?} ", data.diamondCut);
-
         {
             let decoded =
                 setValidatorTimelockCall::abi_decode(&self.calls.elems[5].data, true).unwrap();
@@ -65,6 +63,7 @@ impl Verify for GovernanceStage1Calls {
             "Protocol versions: from: {} to: {} deadline: {}",
             old_protocol_version, new_protocol_version, deadline
         ));
+        // FIXME: infinity is expected and is measured inside governanceupgradetimer.
         if !deadline.deadline_within_day_range(3, 14) {
             result.report_warn(&format!(
                 "Expected upgrade deadline to be within 3 - 14 days from now, but it is {}",
@@ -72,6 +71,7 @@ impl Verify for GovernanceStage1Calls {
             ));
         }
 
+        // FIXME: What about the other fields of the diamondcut?
         let diamond_cut = data.diamondCut;
 
         let upgrade = upgradeCall::abi_decode(&diamond_cut.initCalldata, true).unwrap();

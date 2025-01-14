@@ -149,13 +149,6 @@ impl Verify for OtherConfig {
                 "l1-contracts/GovernanceUpgradeTimer",
             )
             .await;
-        result
-            .expect_deployed_bytecode(
-                verifiers,
-                &self.transparent_proxy_admin,
-                "TransparentProxyAdmin",
-            )
-            .await;
 
         match verifiers.bridgehub_address {
             Some(bridgehub_address) => {
@@ -385,7 +378,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if verifiers.testnet_contracts {
             let chain_id = verifiers.network_verifier.get_l1_chain_id().await.unwrap();
             if chain_id == 1 {
-                panic!("Testnet contracts are expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
+                panic!("Testnet contracts are not expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
             }
         }
     }
@@ -406,6 +399,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     for transaction in &config.transactions {
+        // FIXME: support create2with deterministic owner.
         if let Some((address, hashes)) = verifiers
             .network_verifier
             .check_crate2_deploy(

@@ -245,6 +245,7 @@ impl VerificationResult {
                 false,
             )
             .await;
+        // FIXME: and what if not? We should return an error in this case.
         if is_proxy_deployed {
             let transparent_proxy_key = FixedBytes::from_hex(
                 "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
