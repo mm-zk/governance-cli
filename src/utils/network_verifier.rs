@@ -3,8 +3,10 @@ use alloy::primitives::map::{HashMap, HashSet};
 use alloy::primitives::{keccak256, Address, Bytes, FixedBytes, TxHash, U256};
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::sol;
+use alloy::sol_types::SolCall;
 
-use super::compute_create2_address_evm;
+use super::bytecode_verifier::BytecodeVerifier;
+use super::{compute_create2_address_evm, compute_hash_with_arguments};
 
 sol! {
     #[sol(rpc)]
@@ -16,6 +18,10 @@ sol! {
     #[sol(rpc)]
     contract L1SharedBridge {
         function legacyBridge() public returns (address);
+    }
+
+    function create2AndTransferParams(bytes memory bytecode, bytes32 salt, address owner) {
+
     }
 }
 
@@ -31,8 +37,6 @@ pub struct NetworkVerifier {
     pub l1_rpc: Option<String>,
     pub l2_rpc: Option<String>,
     pub l2_chain_id: Option<u64>,
-
-    pub create2_aliases: HashMap<Address, HashSet<FixedBytes<32>>>,
 }
 
 impl NetworkVerifier {
@@ -83,16 +87,6 @@ impl NetworkVerifier {
         }
     }
 
-    pub async fn get_possible_create2_bytecode_hashes(
-        &self,
-        address: &Address,
-    ) -> HashSet<FixedBytes<32>> {
-        self.create2_aliases
-            .get(address)
-            .cloned()
-            .unwrap_or_default()
-    }
-
     pub async fn storage_at(
         &self,
         address: &Address,
@@ -109,19 +103,6 @@ impl NetworkVerifier {
             Some(FixedBytes::from_slice(&storage.to_be_bytes_vec()))
         } else {
             None
-        }
-    }
-
-    fn compute_hash_with_arguments(
-        &self,
-        input: &Bytes,
-        num_arguments: usize,
-    ) -> Option<FixedBytes<32>> {
-        if input.len() < (num_arguments + 2) * 32 {
-            None
-        } else {
-            let after_32_bytes = &input[32..input.len() - 32 * num_arguments];
-            Some(keccak256(after_32_bytes))
         }
     }
 
@@ -160,12 +141,17 @@ impl NetworkVerifier {
         }
     }
 
-    pub async fn check_crate2_deploy(
+    /// Fetches the `transaction` and tries to parse it as a CREATE2 deployment 
+    /// transaction.
+    /// If successful, it returns a tuple of two items: the path to the contract and
+    /// its constructor params.
+    pub async fn check_create2_deploy(
         &self,
         transaction: &str,
         expected_create2_address: &Address,
         expected_create2_salt: &FixedBytes<32>,
-    ) -> Option<(Address, HashSet<FixedBytes<32>>)> {
+        bytecode_verifier: &BytecodeVerifier
+    ) -> Option<(String, Vec<u8>)> {
         if let Some(network) = self.l1_rpc.as_ref() {
             let tx_hash: TxHash = transaction.parse().unwrap();
             let provider = ProviderBuilder::new().on_http(network.parse().unwrap());
@@ -180,19 +166,10 @@ impl NetworkVerifier {
                 return None;
             }
 
-            //  this is l1 nullifier dev.
-
-            // We don't know how many constructor arguments where there, so we'll try to guess.
-
-            let mut hashes = HashSet::default();
-            for num_arguments in 0..10 {
-                if let Some(hash) = self.compute_hash_with_arguments(tx.input(), num_arguments) {
-                    hashes.insert(hash);
-                } else {
-                    break;
-                }
-            }
-            // Compute address
+            // There are two types of CREATE2 deployments that were used:
+            // - Usual, using CREATE2Factory directly.
+            // - By using the `Create2AndTransfer` contract.
+            // We will try both here.
 
             let salt = &tx.input()[0..32];
             if salt != expected_create2_salt.as_slice() {
@@ -200,16 +177,26 @@ impl NetworkVerifier {
                 return None;
             }
 
-            // And hash the rest.
+            if let Some(x) = bytecode_verifier.try_parse_bytecode(&tx.input()[32..]) {
+                return Some(x);
+            };
 
-            // compute create2 address
-            let address = compute_create2_address_evm(
-                tx.to().unwrap(),
-                salt.try_into().unwrap(),
-                keccak256(&tx.input()[32..]).0.into(),
-            );
+            let bytecode_input = &tx.input()[32..];
 
-            Some((address, hashes))
+            // Okay, this may be the `Create2AndTransfer` method.
+            if let Some(create2_and_transfer_input) = bytecode_verifier.is_create2_and_transfer_bytecode_prefix(bytecode_input) {
+                let x = create2AndTransferParamsCall::abi_decode_raw(create2_and_transfer_input, false).unwrap();
+                if salt != x.salt.as_slice() {
+                    println!("Salt mismatch: {:?} != {:?}", salt, x.salt);
+                    return None;
+                }
+                // We do not need to cross check `owner` here, it will be cross checked against whatever owner is currently set 
+                // to the final contracts.
+                // We do still need to check the input to find out potential constructor param
+                return bytecode_verifier.try_parse_bytecode(&x.bytecode);
+            }   
+
+            None
         } else {
             None
         }

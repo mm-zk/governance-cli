@@ -399,20 +399,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     for transaction in &config.transactions {
-        // FIXME: support create2with deterministic owner.
-        if let Some((address, hashes)) = verifiers
+        if let Some((contract, constructor_param)) = verifiers
             .network_verifier
-            .check_crate2_deploy(
+            .check_create2_deploy(
                 &transaction,
                 &config.create2_factory_addr,
                 &FixedBytes::<32>::from_hex(&config.create2_factory_salt).unwrap(),
+                &verifiers
+                .bytecode_verifier
             )
             .await
         {
             verifiers
-                .network_verifier
-                .create2_aliases
-                .insert(address, hashes.into());
+                .bytecode_verifier
+                .bytecode_file_to_constructor_params
+                .insert(contract.clone(), constructor_param)
+                .map(|_| {
+                    panic!("Duplicate deployment for {:#?}", contract);
+                })
+                .unwrap();
         }
     }
 

@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use alloy::primitives::{keccak256, Address, FixedBytes};
+use alloy::primitives::{keccak256, Address, Bytes, FixedBytes};
 
 pub mod address_verifier;
 pub mod bytecode_verifier;
@@ -77,4 +77,16 @@ pub fn compute_create2_address_evm(
 
     // compute create2 address
     Address::from_slice(&keccak256(address_payload).0[12..])
+}
+
+pub fn compute_hash_with_arguments(
+    input: &Bytes,
+    num_arguments: usize,
+) -> Option<FixedBytes<32>> {
+    if input.len() < (num_arguments + 2) * 32 {
+        None
+    } else {
+        let after_32_bytes = &input[32..input.len() - 32 * num_arguments];
+        Some(keccak256(after_32_bytes))
+    }
 }

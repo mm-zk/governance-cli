@@ -1,16 +1,66 @@
 use alloy::hex;
+use alloy::primitives::{keccak256, Bytes};
 use alloy::primitives::{map::HashMap, FixedBytes};
 use serde::{Deserialize, Serialize};
 
-use super::get_contents_from_github;
+use super::{compute_hash_with_arguments, get_contents_from_github};
 
 #[derive(Default)]
 pub struct BytecodeVerifier {
     pub bytecode_hash_to_file: HashMap<FixedBytes<32>, String>,
     pub bytecode_file_to_zkhash: HashMap<String, FixedBytes<32>>,
+    pub bytecode_file_to_constructor_params: HashMap<String, Vec<u8>>,
 }
 
 impl BytecodeVerifier {
+    // Tries to parse the `maybe_bytecode` as the init code.
+    pub fn try_parse_bytecode(&self, maybe_bytecode: &[u8]) -> Option<(String, Vec<u8>)> {
+        // We do not know how many params there were, we just brute force from 0 to 10
+        for i in 0..10 {
+            if let Some(h) = compute_hash_with_arguments(&Bytes::copy_from_slice(maybe_bytecode), i) {
+                if let Some(name) = self.bytecode_hash_to_file.get(&h) {
+                    return Some((
+                        name.clone(),
+                        maybe_bytecode[32..maybe_bytecode.len() - 32 * i].to_vec()
+                    ));
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn is_create2_and_transfer_bytecode_prefix<'a>(&self, slice: &'a[u8]) -> Option<&'a[u8]> {
+        // We generally try to not rely on bytecodes of the contracts, but in this case
+        // it is the most efficient way.
+        let create2_and_transfer_bytecode = hex::decode("60a060405234801561000f575f80fd5b506040516102c03803806102c083398101604081905261002e9161012e565b5f828451602086015ff590506001600160a01b0381166100945760405162461bcd60e51b815260206004820152601960248201527f437265617465323a204661696c6564206f6e206465706c6f7900000000000000604482015260640160405180910390fd5b60405163f2fde38b60e01b81526001600160a01b03838116600483015282169063f2fde38b906024015f604051808303815f87803b1580156100d4575f80fd5b505af11580156100e6573d5f803e3d5ffd5b505050506001600160a01b031660805250610209915050565b634e487b7160e01b5f52604160045260245ffd5b80516001600160a01b0381168114610129575f80fd5b919050565b5f805f60608486031215610140575f80fd5b83516001600160401b0380821115610156575f80fd5b818601915086601f830112610169575f80fd5b81518181111561017b5761017b6100ff565b604051601f8201601f19908116603f011681019083821181831017156101a3576101a36100ff565b816040528281526020935089848487010111156101be575f80fd5b5f91505b828210156101df57848201840151818301850152908301906101c2565b5f848483010152809750505050808601519350505061020060408501610113565b90509250925092565b60805160a261021e5f395f602e015260a25ff3fe6080604052348015600e575f80fd5b50600436106026575f3560e01c80638efc30f914602a575b5f80fd5b60507f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b03909116815260200160405180910390f3fea2646970667358221220fd100d8cba14d94be3a7e02be2024b2005374d099be5d61a3beb1aa4690ab94064736f6c63430008180033").unwrap();
+
+        if slice.len() < create2_and_transfer_bytecode.len() {
+            return None;
+        }
+
+        if create2_and_transfer_bytecode != slice[..create2_and_transfer_bytecode.len()] {
+            return None;
+        }
+
+        return Some(&slice[create2_and_transfer_bytecode.len()..])
+    }
+
+    // // Tries to find the bytecode that is a prefix of the provided slice.
+    // // If found, returns the name of the bytecode + the rest of the slice
+    // // Note, that this method is very inefficient and only suitable for bytecodes that are known to be short.
+    // pub fn try_parse_bytecode_starting_from_pos<'a>(&self, maybe_bytecode: &'a[u8]) -> Option<(String, &'a[u8])> {
+    //     let mut pos = 32;
+    //     while pos < maybe_bytecode.len() {
+    //         let potential_bytecode = keccak256(&maybe_bytecode[..pos]);
+    //         if let Some(x) = self.bytecode_hash_to_file(&potential_bytecode) {
+    //             return Some((x.clone(), &maybe_bytecode[pos..]));
+    //         }
+    //         pos += 32;
+    //     }
+    //     None
+    // }
+
     pub fn bytecode_hash_to_file(&self, bytecode_hash: &FixedBytes<32>) -> Option<&String> {
         self.bytecode_hash_to_file.get(bytecode_hash)
     }
