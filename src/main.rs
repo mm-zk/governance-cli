@@ -368,7 +368,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init_from_github(
             &args
                 .contracts_commit
-                .unwrap_or("3d73e064c2371ef32edfdbcf9c199e4c85b0fd7e".to_string()),
+                .unwrap_or("16dedf6d77695ce00f81fce35a3066381b97fca1".to_string()),
         )
         .await;
 
@@ -376,7 +376,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         GenesisConfig::init_from_github(
             &args
                 .era_commit
-                .unwrap_or("0efe1db5126bc2d2b0702a1404f7eb0ca0231ef0".to_string()),
+                .unwrap_or("ee14cb4826dbec00e9e7d909ed9af3994379df46".to_string()),
         )
         .await,
     );
