@@ -1335,6 +1335,7 @@ deployed_addresses:
   validator_timelock_addr: "0x7aec98A68CdFF415B08303d0A4f9b1f3a131De22"
   validium_l1_da_validator_addr: "0xEc91AF106d70e90fB38b9474a443f37FeeF49361"
   l1_transitionary_owner: "0xF82b42a4FCcbAbA450e0C9FF431010c1ee8992A3"
+  l1_rollup_da_manager: "0x79c9b9a7e817aba476fafcbc4991ad26f9701f06"
   bridgehub:
     bridgehub_implementation_addr: "0xdC4F9423B6dbd85f18303f1652B3a56f53bD8237"
     ctm_deployment_tracker_implementation_addr: "0xd155b587015086E91a97AE1fdd990890e36Ab876"

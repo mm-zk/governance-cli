@@ -72,6 +72,35 @@ sol! {
     contract L1Nullifier {
         constructor(address _bridgehub, uint256 _eraChainId, address _eraDiamondProxy);
     }
+
+    contract L1ERC20Bridge {
+        constructor(
+            address _nullifier,
+            address _assetRouter,
+            address _nativeTokenVault,
+            uint256 _eraChainId
+        );
+    }
+
+    contract ChainTypeManager {
+        constructor(address _bridgehub);
+    }
+
+    contract AdminFacet {
+        constructor(uint256 _l1ChainId, address _rollupDAManager);
+    }
+
+    contract ExecutorFacet {
+        constructor(uint256 _l1ChainId);
+    }
+
+    contract MailboxFacet {
+        constructor(uint256 _eraChainId, uint256 _l1ChainId);
+    }
+
+    contract BridgehubImpl {
+        constructor(uint256 _l1ChainId, address _owner, uint256 _maxNumberOfZKChains) {}
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -87,6 +116,8 @@ pub struct DeployedAddresses {
     validium_l1_da_validator_addr: Address,
     // FIXME: verify that the following contract is correct.
     l1_transitionary_owner: Address,
+    // FIXME: verify that the following contract is correct.
+    l1_rollup_da_manager: Address,
     bridges: Bridges,
     bridgehub: Bridgehub,
     state_transition: StateTransition,
@@ -345,6 +376,113 @@ impl DeployedAddresses {
         result.expect_create2_params(verifiers, &self.bridges.l1_nullifier_implementation_addr, l1nullifier_constructor_data, "l1-contracts/L1Nullifier");
     }
 
+    async fn verify_l1_erc20_bridge(
+        &self,
+        config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        bridgehub_info: &BridgehubInfo
+    ) {
+        result.expect_create2_params(
+            verifiers, 
+            &self.bridges.erc20_bridge_implementation_addr, 
+            L1ERC20Bridge::constructorCall::new((bridgehub_info.shared_bridge, self.bridges.shared_bridge_proxy_addr, self.native_token_vault_addr, U256::from(config.era_chain_id))).abi_encode(), 
+            "l1-contracts/L1ERC20Bridge"
+        );
+    }
+
+    async fn verify_bridgehub_impl(
+        &self,
+        config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        bridgehub_info: &BridgehubInfo
+    ) {
+        // FIXME: this should be pulled from config somewhere, though the number is
+        // correct for all envs.
+        const MAX_NUMBER_OF_CHAINS: usize = 100;
+        result.expect_create2_params(
+            verifiers, 
+            &self.bridgehub.bridgehub_implementation_addr, 
+            BridgehubImpl::constructorCall::new((U256::from(config.l1_chain_id), bridgehub_info.owner, U256::from(MAX_NUMBER_OF_CHAINS))).abi_encode(), 
+            "l1-contracts/Bridgehub"
+        );
+    }
+
+    async fn verify_chain_type_manager(
+        &self,
+        _config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        bridgehub_info: &BridgehubInfo
+    ) {
+        result.expect_create2_params(
+            verifiers, 
+            &self.state_transition.state_transition_implementation_addr, 
+            ChainTypeManager::constructorCall::new((bridgehub_info.bridgehub_addr,)).abi_encode(), 
+            "l1-contracts/ChainTypeManager"
+        );
+    }
+
+    async fn verify_admin_facet(
+        &self,
+        config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        _bridgehub_info: &BridgehubInfo
+    ) {
+        result.expect_create2_params(
+            verifiers, 
+            &self.state_transition.admin_facet_addr, 
+            AdminFacet::constructorCall::new((U256::from(config.l1_chain_id), self.l1_rollup_da_manager)).abi_encode(), 
+            "l1-contracts/AdminFacet"
+        );
+    }
+
+    async fn verify_executor_facet(
+        &self,
+        config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        _bridgehub_info: &BridgehubInfo
+    ) {
+        result.expect_create2_params(
+            verifiers, 
+            &self.state_transition.executor_facet_addr, 
+            ExecutorFacet::constructorCall::new((U256::from(config.l1_chain_id),)).abi_encode(), 
+            "l1-contracts/ExecutorFacet"
+        );
+    }
+
+    async fn verify_getters_facet(
+        &self,
+        _config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        _bridgehub_info: &BridgehubInfo
+    ) {
+        result.expect_create2_params(
+            verifiers, 
+            &self.state_transition.getters_facet_addr, 
+            vec![], 
+            "l1-contracts/GettersFacet"
+        );
+    }
+
+    async fn verify_mailbox_facet(
+        &self,
+        config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        _bridgehub_info: &BridgehubInfo
+    ) {
+        result.expect_create2_params(
+            verifiers, 
+            &self.state_transition.mailbox_facet_addr, 
+            MailboxFacet::constructorCall::new((U256::from(config.era_chain_id), U256::from(config.l1_chain_id))).abi_encode(), 
+            "l1-contracts/MailboxFacet"
+        );
+    }
 
     pub async fn verify(
         &self,
@@ -366,139 +504,54 @@ impl DeployedAddresses {
 
         self.verify_l1_asset_router(config, verifiers, result, &bridgehub_info).await;
         self.verify_l1_nullifier(config, verifiers, result, &bridgehub_info).await;
+        self.verify_l1_erc20_bridge(config, verifiers, result, &bridgehub_info).await;
+        self.verify_bridgehub_impl(config, verifiers, result, &bridgehub_info).await;
+        
 
-        // self.bridges.verify(verifiers, result).await?;
-        // self.bridgehub.verify(verifiers, result).await?;
-        // self.state_transition.verify(verifiers, result).await?;
+
+        self.verify_chain_type_manager(config, verifiers, result, &bridgehub_info).await;
+
+
+        self.verify_admin_facet(config, verifiers, result, &bridgehub_info).await;
+        self.verify_executor_facet(config, verifiers, result, &bridgehub_info).await;
+        self.verify_getters_facet(config, verifiers, result, &bridgehub_info).await;
+        self.verify_mailbox_facet(config, verifiers, result, &bridgehub_info).await;
+
+          
+        result
+            .expect_create2_params(
+                verifiers,
+                &self.state_transition.verifier_addr,
+                vec![],
+                if verifiers.testnet_contracts {
+                    "l1-contracts/TestnetVerifier"
+                } else {
+                    "l1-contracts/Verifier"
+                },
+            );
+        result
+            .expect_create2_params(
+                verifiers,
+                &self.state_transition.genesis_upgrade_addr,
+                vec![],
+                    "l1-contracts/L1GenesisUpgrade"
+            );
+        result
+            .expect_create2_params(
+                verifiers,
+                &self.state_transition.default_upgrade_addr,
+                vec![],
+                    "l1-contracts/DefaultUpgrade"
+            );
+        result
+            .expect_create2_params(
+                verifiers,
+                &self.state_transition.diamond_init_addr,
+                vec![],
+                    "l1-contracts/DiamondInit"
+            );
 
         result.report_ok("deployed addresses");
-        Ok(())
-    }
-}
-
-impl Bridges {
-
-    async fn verify(
-        &self,
-        config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
-        bridgehub_info: &BridgehubInfo
-    ) -> anyhow::Result<()> {
-        // FIXME: constructor params?
-
-        // result
-        //     .expect_create2_params(
-        //         verifiers,
-        //         &self.erc20_bridge_implementation_addr,
-        //         "l1-contracts/L1ERC20Bridge",
-        //     )
-        //     .await;
-
-        Ok(())
-    }
-}
-
-impl Verify for Bridgehub {
-    async fn verify(
-        &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
-    ) -> anyhow::Result<()> {
-        // // FIXME: constructor params?
-        // result
-        //     .expect_create2_params_proxy_with_bytecode(
-        //         verifiers,
-        //         &self.ctm_deployment_tracker_proxy_addr,
-        //         "l1-contracts/CTMDeploymentTracker",
-        //     )
-        //     .await;
-
-        // result
-        //     .expect_create2_params(
-        //         verifiers,
-        //         &self.bridgehub_implementation_addr,
-        //         "l1-contracts/Bridgehub",
-        //     )
-        //     .await;
-
-        Ok(())
-    }
-}
-
-impl Verify for StateTransition {
-    async fn verify(
-        &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
-    ) -> anyhow::Result<()> {
-        // // FIXME: constructor params?
-        // result
-        //     .expect_create2_params(
-        //         verifiers,
-        //         &self.verifier_addr,
-        //         if verifiers.testnet_contracts {
-        //             "l1-contracts/TestnetVerifier"
-        //         } else {
-        //             "l1-contracts/Verifier"
-        //         },
-        //     )
-        //     .await;
-
-        // result
-        //     .expect_create2_params(
-        //         verifiers,
-        //         &self.state_transition_implementation_addr,
-        //         "l1-contracts/ChainTypeManager",
-        //     )
-        //     .await;
-        // result
-        //     .expect_create2_params(
-        //         verifiers,
-        //         &self.genesis_upgrade_addr,
-        //         "l1-contracts/L1GenesisUpgrade",
-        //     )
-        //     .await;
-
-        // result
-        //     .expect_create2_params(verifiers, &self.admin_facet_addr, "l1-contracts/AdminFacet")
-        //     .await;
-        // result
-        //     .expect_create2_params(
-        //         verifiers,
-        //         &self.default_upgrade_addr,
-        //         "l1-contracts/DefaultUpgrade",
-        //     )
-        //     .await;
-        // result
-        //     .expect_create2_params(
-        //         verifiers,
-        //         &self.diamond_init_addr,
-        //         "l1-contracts/DiamondInit",
-        //     )
-        //     .await;
-        // result
-        //     .expect_create2_params(
-        //         verifiers,
-        //         &self.executor_facet_addr,
-        //         "l1-contracts/ExecutorFacet",
-        //     )
-        //     .await;
-        // result
-        //     .expect_create2_params(
-        //         verifiers,
-        //         &self.getters_facet_addr,
-        //         "l1-contracts/GettersFacet",
-        //     )
-        //     .await;
-        // result
-        //     .expect_create2_params(
-        //         verifiers,
-        //         &self.mailbox_facet_addr,
-        //         "l1-contracts/MailboxFacet",
-        //     )
-        //     .await;
-
         Ok(())
     }
 }
