@@ -101,6 +101,25 @@ sol! {
     contract BridgehubImpl {
         constructor(uint256 _l1ChainId, address _owner, uint256 _maxNumberOfZKChains) {}
     }
+
+    #[sol(rpc)]
+    contract RollupDAManager{
+        function isPairAllowed(address _l1DAValidator, address _l2DAValidator) external view returns (bool);
+        address public owner;
+    }
+
+    contract TransitionaryOwner {
+        constructor(address _governanceAddress);
+    }
+
+    contract BridgedTokenBeacon {
+        constructor(address _beacon);
+    }
+
+    contract MessageRoot {
+        constructor(address _bridgehub) {}
+        function initialize() {}
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -108,15 +127,10 @@ pub struct DeployedAddresses {
     native_token_vault_addr: Address,
     validator_timelock_addr: Address,
     l2_wrapped_base_token_store_addr: Address,
-    // FIXME: verify that the contract is correct
     l1_bytecodes_supplier_addr: Address,
-    // FIXME: verify that the following contract is correct.
     rollup_l1_da_validator_addr: Address,
-    // FIXME: verify that the following contract is correct.
     validium_l1_da_validator_addr: Address,
-    // FIXME: verify that the following contract is correct.
     l1_transitionary_owner: Address,
-    // FIXME: verify that the following contract is correct.
     l1_rollup_da_manager: Address,
     bridges: Bridges,
     bridgehub: Bridgehub,
@@ -128,16 +142,13 @@ pub struct Bridges {
     shared_bridge_proxy_addr: Address,
     pub l1_nullifier_implementation_addr: Address,
     pub erc20_bridge_implementation_addr: Address,
-    // FIXME: verify the contents of this contract.
     pub bridged_standard_erc20_impl: Address,
-    // FIXME: verify the contents of this contract.
     pub bridged_token_beacon: Address
 }
 #[derive(Debug, Deserialize)]
 pub struct Bridgehub {
     ctm_deployment_tracker_proxy_addr: Address,
     bridgehub_implementation_addr: Address,
-    // FIXME: verify that the contents of this contract are correct.
     message_root_proxy_addr: Address,
 }
 
@@ -484,6 +495,92 @@ impl DeployedAddresses {
         );
     }
 
+    async fn verify_rollup_da_manager(
+        &self,
+        config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        _bridgehub_info: &BridgehubInfo
+    ) {
+        // Firstly, we check that it was deployed correctly.
+        result.expect_create2_params(
+            verifiers, 
+            &self.l1_rollup_da_manager, 
+            vec![], 
+            "l1-contracts/RollupDAManager"
+        );
+
+        // However, we also need to check that its owner is correct and that the rollup l1 da validator has been whitelisted there.
+        
+        let rollup_da_manager = RollupDAManager::new(
+            self.l1_rollup_da_manager,
+            verifiers.network_verifier.get_l1_provider().unwrap()
+        );
+        let is_rollup_pair_allowed = rollup_da_manager.isPairAllowed(self.rollup_l1_da_validator_addr, Address::from_str(&config.contracts_config.expected_rollup_l2_da_validator).unwrap()).call().await.unwrap()._0;
+        assert!(is_rollup_pair_allowed);
+
+        let current_owner = rollup_da_manager.owner().call().await.unwrap().owner;
+        assert!(current_owner == self.l1_transitionary_owner);
+
+        // FIXME (bonus): we should also check that nothing else has been whitelisted.
+    }
+
+    async fn verify_transitionary_owner(
+        &self,
+        config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        bridgehub_info: &BridgehubInfo
+    ) {
+        result.expect_create2_params(
+            verifiers, 
+            &self.l1_transitionary_owner, 
+            TransitionaryOwner::constructorCall::new((bridgehub_info.owner,)).abi_encode(),
+             "l1-contracts/TransitionaryOwner"
+        );
+
+    }
+
+    async fn verify_bridged_token_beacon(
+        &self,
+        _config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        _bridgehub_info: &BridgehubInfo
+    ) {
+        result.expect_create2_params(
+            verifiers, 
+            &self.bridges.bridged_token_beacon, 
+            BridgedTokenBeacon::constructorCall::new((self.bridges.bridged_standard_erc20_impl,)).abi_encode(),
+             "l1-contracts/UpgradeableBeacon"
+        );
+    }
+
+    async fn verify_message_root(
+        &self,
+        config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        bridgehub_info: &BridgehubInfo
+    ) {
+        let message_root_impl_constructor = MessageRoot::constructorCall::new((bridgehub_info.bridgehub_addr,)).abi_encode();
+        let message_root_init_calldata = MessageRoot::initializeCall::new(()).abi_encode();
+
+        result
+            .expect_create2_params_proxy_with_bytecode(
+                verifiers,
+                &self.bridgehub.message_root_proxy_addr,
+                message_root_init_calldata,
+                bridgehub_info.transparent_proxy_admin,
+                message_root_impl_constructor,
+                "l1-contracts/MessageRoot",
+            )
+            .await;
+    }
+
+    // 000000000000000000000000153a8e2a42d88a9c88bd45ea583dc8cbb25afae6000000000000000000000000dbb1cfffce359f626bc23fe7fe6fc43492325cfc000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000048129fc1c00000000000000000000000000000000000000000000000000000000
+    // 000000000000000000000000153a8e2a42d88a9c88bd45ea583dc8cbb25afae6000000000000000000000000cb7f8e556ef02771ea32f54e767d6f9742ed31c2000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000048129fc1c00000000000000000000000000000000000000000000000000000000
+
     pub async fn verify(
         &self,
         config: &Config,
@@ -517,7 +614,11 @@ impl DeployedAddresses {
         self.verify_getters_facet(config, verifiers, result, &bridgehub_info).await;
         self.verify_mailbox_facet(config, verifiers, result, &bridgehub_info).await;
 
-          
+        self.verify_rollup_da_manager(config, verifiers, result, &bridgehub_info).await;
+        self.verify_transitionary_owner(config, verifiers, result, &bridgehub_info).await;
+        self.verify_bridged_token_beacon(config, verifiers, result, &bridgehub_info).await;
+        self.verify_message_root(config, verifiers, result, &bridgehub_info).await;
+
         result
             .expect_create2_params(
                 verifiers,
@@ -550,6 +651,10 @@ impl DeployedAddresses {
                 vec![],
                     "l1-contracts/DiamondInit"
             );
+        result.expect_create2_params(verifiers, &self.l1_bytecodes_supplier_addr, vec![], "l1-contracts/BytecodesSupplier");
+        result.expect_create2_params(verifiers, &self.rollup_l1_da_validator_addr, vec![], "da-contracts/RollupL1DAValidator");
+        result.expect_create2_params(verifiers, &self.validium_l1_da_validator_addr, vec![], "l1-contracts/ValidiumL1DAValidator");
+        result.expect_create2_params(verifiers, &self.bridges.bridged_standard_erc20_impl, vec![], "l1-contracts/BridgedStandardERC20");
 
         result.report_ok("deployed addresses");
         Ok(())

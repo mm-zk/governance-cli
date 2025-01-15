@@ -27,7 +27,6 @@ struct Config {
     governance_stage2_calls: String,
 
     deployed_addresses: DeployedAddresses,
-    #[allow(dead_code)]
     contracts_config: ContractsConfig,
 
     create2_factory_addr: Address,
