@@ -31,14 +31,16 @@ impl FeeParamVerifier {
         diamond_proxy_address: &Address,
         network_verifier: &NetworkVerifier,
     ) {
-        let value = network_verifier.get_storage_at(diamond_proxy_address, FEE_PARAM_STORAGE_SLOT).await;
+        let value = network_verifier
+            .get_storage_at(diamond_proxy_address, FEE_PARAM_STORAGE_SLOT)
+            .await;
 
         match value {
             None => self.on_chain_fee_params = FeeParams::default(),
             Some(value) => {
                 // Remove first 11 bytes as its padding from storage slot
                 let bytes = &value.0[7..];
-                
+
                 // Parse the remaining bytes into their fields
                 let minimal_l2_gas_price_bytes = &bytes[0..8];
                 let priority_tx_max_pubdata_bytes = &bytes[8..12];
@@ -47,11 +49,21 @@ impl FeeParamVerifier {
                 let batch_overhead_l1_gas_bytes = &bytes[20..24];
                 let pubdata_pricing_mode_byte = bytes[24];
 
-                let minimal_l2_gas_price = u64::from_be_bytes(Uint::<64, 1>::from_be_slice(minimal_l2_gas_price_bytes).to_be_bytes());
-                let priority_tx_max_pubdata = u32::from_be_bytes(Uint::<32, 1>::from_be_slice(priority_tx_max_pubdata_bytes).to_be_bytes());
-                let max_l2_gas_per_batch = u32::from_be_bytes(Uint::<32, 1>::from_be_slice(max_l2_gas_per_batch_bytes).to_be_bytes());
-                let max_pubdata_per_batch = u32::from_be_bytes(Uint::<32, 1>::from_be_slice(max_pubdata_per_batch_bytes).to_be_bytes());
-                let batch_overhead_l1_gas = u32::from_be_bytes(Uint::<32, 1>::from_be_slice(batch_overhead_l1_gas_bytes).to_be_bytes());
+                let minimal_l2_gas_price = u64::from_be_bytes(
+                    Uint::<64, 1>::from_be_slice(minimal_l2_gas_price_bytes).to_be_bytes(),
+                );
+                let priority_tx_max_pubdata = u32::from_be_bytes(
+                    Uint::<32, 1>::from_be_slice(priority_tx_max_pubdata_bytes).to_be_bytes(),
+                );
+                let max_l2_gas_per_batch = u32::from_be_bytes(
+                    Uint::<32, 1>::from_be_slice(max_l2_gas_per_batch_bytes).to_be_bytes(),
+                );
+                let max_pubdata_per_batch = u32::from_be_bytes(
+                    Uint::<32, 1>::from_be_slice(max_pubdata_per_batch_bytes).to_be_bytes(),
+                );
+                let batch_overhead_l1_gas = u32::from_be_bytes(
+                    Uint::<32, 1>::from_be_slice(batch_overhead_l1_gas_bytes).to_be_bytes(),
+                );
                 let pubdata_pricing_mode = if pubdata_pricing_mode_byte == 0 {
                     PubdataPricingMode::Rollup
                 } else if pubdata_pricing_mode_byte == 1 {
@@ -60,7 +72,6 @@ impl FeeParamVerifier {
                     PubdataPricingMode::__Invalid
                 };
 
-                
                 self.on_chain_fee_params = FeeParams {
                     pubdataPricingMode: pubdata_pricing_mode,
                     batchOverheadL1Gas: batch_overhead_l1_gas,

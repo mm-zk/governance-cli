@@ -112,11 +112,7 @@ impl NetworkVerifier {
         }
     }
 
-    pub async fn get_storage_at(
-        &self,
-        address: &Address,
-        key: u8,
-    ) -> Option<FixedBytes<32>> {
+    pub async fn get_storage_at(&self, address: &Address, key: u8) -> Option<FixedBytes<32>> {
         if let Some(network) = self.l1_rpc.as_ref() {
             let provider = ProviderBuilder::new().on_http(network.parse().unwrap());
 

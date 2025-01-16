@@ -405,12 +405,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         verifiers
-        .fee_param_verifier
-        .init_from_on_chain(
-            &Address::from_hex(&args.diamond_proxy_address.unwrap()).unwrap(),
-            &verifiers.network_verifier,
-        )
-        .await;
+            .fee_param_verifier
+            .init_from_on_chain(
+                &Address::from_hex(&args.diamond_proxy_address.unwrap()).unwrap(),
+                &verifiers.network_verifier,
+            )
+            .await;
     }
 
     if let Some(l2_rpc) = &args.l2_rpc {
@@ -461,7 +461,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap(),
         "TransparentProxyAdmin".to_string(),
     );
-    
+
     verifiers.bytecode_verifier.add_bytecode_hash(
         FixedBytes::<32>::from_hex(
             "1e651120773914ac75c42598ceac4da0dc3e21709d438937f742ecf916ac30ae",

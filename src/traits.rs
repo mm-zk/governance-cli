@@ -8,7 +8,9 @@ use std::fmt::Display;
 use std::panic::Location;
 
 use crate::utils::{
-    address_verifier::AddressVerifier, bytecode_verifier::BytecodeVerifier, fee_param_verifier::FeeParamVerifier, get_contents_from_github, network_verifier::NetworkVerifier, selector_verifier::SelectorVerifier
+    address_verifier::AddressVerifier, bytecode_verifier::BytecodeVerifier,
+    fee_param_verifier::FeeParamVerifier, get_contents_from_github,
+    network_verifier::NetworkVerifier, selector_verifier::SelectorVerifier,
 };
 
 #[derive(Default)]

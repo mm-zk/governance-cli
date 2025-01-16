@@ -71,7 +71,7 @@ impl InitializeDataNewChain {
         }
 
         // verify FeeParams sanity.
-        
+
         // First check file based FeeParams
         let file_based_fee_params = &verifiers.fee_param_verifier.file_based_fee_params;
 
@@ -85,8 +85,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "File Based FeeParams - {}: {}",
-                "pubdataPricingMode",
-                self.feeParams.pubdataPricingMode
+                "pubdataPricingMode", self.feeParams.pubdataPricingMode
             ));
         }
 
@@ -100,8 +99,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "File Based FeeParams - {}: {}",
-                "batchOverheadL1Gas",
-                self.feeParams.batchOverheadL1Gas
+                "batchOverheadL1Gas", self.feeParams.batchOverheadL1Gas
             ));
         }
 
@@ -115,8 +113,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "File Based FeeParams - {}: {}",
-                "maxPubdataPerBatch",
-                self.feeParams.maxPubdataPerBatch
+                "maxPubdataPerBatch", self.feeParams.maxPubdataPerBatch
             ));
         }
 
@@ -130,8 +127,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "File Based FeeParams - {}: {}",
-                "maxL2GasPerBatch",
-                self.feeParams.maxL2GasPerBatch
+                "maxL2GasPerBatch", self.feeParams.maxL2GasPerBatch
             ));
         }
 
@@ -145,8 +141,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "File Based FeeParams - {}: {}",
-                "priorityTxMaxPubdata",
-                self.feeParams.priorityTxMaxPubdata
+                "priorityTxMaxPubdata", self.feeParams.priorityTxMaxPubdata
             ));
         }
 
@@ -160,8 +155,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "File Based FeeParams - {}: {}",
-                "minimalL2GasPrice",
-                self.feeParams.minimalL2GasPrice
+                "minimalL2GasPrice", self.feeParams.minimalL2GasPrice
             ));
         }
 
@@ -177,8 +171,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "On Chain Based FeeParams - {}: {}",
-                "pubdataPricingMode",
-                self.feeParams.pubdataPricingMode
+                "pubdataPricingMode", self.feeParams.pubdataPricingMode
             ));
         }
 
@@ -192,8 +185,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "On Chain Based FeeParams - {}: {}",
-                "batchOverheadL1Gas",
-                self.feeParams.batchOverheadL1Gas
+                "batchOverheadL1Gas", self.feeParams.batchOverheadL1Gas
             ));
         }
 
@@ -207,8 +199,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "On Chain Based FeeParams - {}: {}",
-                "maxPubdataPerBatch",
-                self.feeParams.maxPubdataPerBatch
+                "maxPubdataPerBatch", self.feeParams.maxPubdataPerBatch
             ));
         }
 
@@ -222,8 +213,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "On Chain Based FeeParams - {}: {}",
-                "maxL2GasPerBatch",
-                self.feeParams.maxL2GasPerBatch
+                "maxL2GasPerBatch", self.feeParams.maxL2GasPerBatch
             ));
         }
 
@@ -237,8 +227,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "On Chain Based FeeParams - {}: {}",
-                "priorityTxMaxPubdata",
-                self.feeParams.priorityTxMaxPubdata
+                "priorityTxMaxPubdata", self.feeParams.priorityTxMaxPubdata
             ));
         }
 
@@ -252,8 +241,7 @@ impl InitializeDataNewChain {
         } else {
             result.report_ok(&format!(
                 "On Chain Based FeeParams - {}: {}",
-                "minimalL2GasPrice",
-                self.feeParams.minimalL2GasPrice
+                "minimalL2GasPrice", self.feeParams.minimalL2GasPrice
             ));
         }
 
