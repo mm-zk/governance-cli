@@ -153,7 +153,6 @@ impl ProposedUpgrade {
 
         let mut errors = 0;
 
-        // FIXME: the tx is not fully checked.
         let tx = &self.l2ProtocolUpgradeTx;
         if tx.txType != U256::from(254) {
             result.report_error("Invalid txType");
@@ -210,6 +209,7 @@ impl ProposedUpgrade {
             errors += 1;
         }
 
+        // FIXME: it is not checked that the bytecodes were actually published
         let deps = tx
             .factoryDeps
             .iter()
