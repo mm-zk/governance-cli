@@ -347,6 +347,9 @@ struct Args {
 
     #[clap(long)]
     bridgehub_address: Option<String>,
+
+    #[clap(long)]
+    diamond_proxy_address: Option<String>,
 }
 
 #[tokio::main]
@@ -368,6 +371,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init_from_github(
             &args
                 .contracts_commit
+                .clone()
                 .unwrap_or("16dedf6d77695ce00f81fce35a3066381b97fca1".to_string()),
         )
         .await;
@@ -381,6 +385,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await,
     );
 
+    verifiers
+        .fee_param_verifier
+        .init_from_github(
+            &args
+                .contracts_commit
+                .unwrap_or("16dedf6d77695ce00f81fce35a3066381b97fca1".to_string()),
+        )
+        .await;
+
     if let Some(l1_rpc) = &args.l1_rpc {
         verifiers
             .network_verifier
@@ -391,6 +404,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 panic!("Testnet contracts are expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
             }
         }
+        verifiers
+        .fee_param_verifier
+        .init_from_on_chain(
+            &Address::from_hex(&args.diamond_proxy_address.unwrap()).unwrap(),
+            &verifiers.network_verifier,
+        )
+        .await;
     }
 
     if let Some(l2_rpc) = &args.l2_rpc {
@@ -437,6 +457,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     verifiers.bytecode_verifier.add_bytecode_hash(
         FixedBytes::<32>::from_hex(
             "0x1d8a3e7186b2285da5ef3ccf4c63a672e91873f2ffdec522a241f72bfcab11c5",
+        )
+        .unwrap(),
+        "TransparentProxyAdmin".to_string(),
+    );
+    
+    verifiers.bytecode_verifier.add_bytecode_hash(
+        FixedBytes::<32>::from_hex(
+            "1e651120773914ac75c42598ceac4da0dc3e21709d438937f742ecf916ac30ae",
         )
         .unwrap(),
         "TransparentProxyAdmin".to_string(),

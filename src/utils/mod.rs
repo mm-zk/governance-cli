@@ -8,6 +8,7 @@ use alloy::primitives::{keccak256, Address, FixedBytes};
 
 pub mod address_verifier;
 pub mod bytecode_verifier;
+pub mod fee_param_verifier;
 pub mod network_verifier;
 pub mod selector_verifier;
 

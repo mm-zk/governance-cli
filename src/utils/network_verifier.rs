@@ -112,6 +112,25 @@ impl NetworkVerifier {
         }
     }
 
+    pub async fn get_storage_at(
+        &self,
+        address: &Address,
+        key: u8,
+    ) -> Option<FixedBytes<32>> {
+        if let Some(network) = self.l1_rpc.as_ref() {
+            let provider = ProviderBuilder::new().on_http(network.parse().unwrap());
+
+            let storage = provider
+                .get_storage_at(address.clone(), U256::from(key))
+                .await
+                .unwrap();
+
+            Some(FixedBytes::from_slice(&storage.to_be_bytes_vec()))
+        } else {
+            None
+        }
+    }
+
     fn compute_hash_with_arguments(
         &self,
         input: &Bytes,
