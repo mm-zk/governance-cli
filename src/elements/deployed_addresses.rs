@@ -120,6 +120,10 @@ sol! {
         constructor(address _bridgehub) {}
         function initialize() {}
     }
+
+    contract GovernanceUpgradeTimer {
+        constructor(uint256 _initialDelay, uint256 _maxAdditionalDelay, address _timerGovernance, address _initialOwner) {}
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -132,6 +136,8 @@ pub struct DeployedAddresses {
     validium_l1_da_validator_addr: Address,
     l1_transitionary_owner: Address,
     l1_rollup_da_manager: Address,
+    l1_gateway_upgrade: Address,
+    l1_governance_upgrade_timer: Address,
     bridges: Bridges,
     bridgehub: Bridgehub,
     state_transition: StateTransition,
@@ -578,8 +584,23 @@ impl DeployedAddresses {
             .await;
     }
 
-    // 000000000000000000000000153a8e2a42d88a9c88bd45ea583dc8cbb25afae6000000000000000000000000dbb1cfffce359f626bc23fe7fe6fc43492325cfc000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000048129fc1c00000000000000000000000000000000000000000000000000000000
-    // 000000000000000000000000153a8e2a42d88a9c88bd45ea583dc8cbb25afae6000000000000000000000000cb7f8e556ef02771ea32f54e767d6f9742ed31c2000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000048129fc1c00000000000000000000000000000000000000000000000000000000
+    async fn verify_governance_upgrade_timer(
+        &self,
+        config: &Config,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        bridgehub_info: &BridgehubInfo  
+    ) {
+        // FIXME: this should be loaded from some file.
+        const INITIAL_DELAY: u32 = 86400;
+        const MAX_INITIAL_DELAY: u32 = 1209600;
+
+        let expected_constructor_params = GovernanceUpgradeTimer::constructorCall::new(
+            (U256::from(INITIAL_DELAY), U256::from(MAX_INITIAL_DELAY), bridgehub_info.owner, bridgehub_info.ecosystem_admin)
+        ).abi_encode();
+
+        result.expect_create2_params(verifiers, &self.l1_governance_upgrade_timer, expected_constructor_params, "l1-contracts/GovernanceUpgradeTimer");
+    }
 
     pub async fn verify(
         &self,
@@ -604,10 +625,7 @@ impl DeployedAddresses {
         self.verify_l1_erc20_bridge(config, verifiers, result, &bridgehub_info).await;
         self.verify_bridgehub_impl(config, verifiers, result, &bridgehub_info).await;
         
-
-
         self.verify_chain_type_manager(config, verifiers, result, &bridgehub_info).await;
-
 
         self.verify_admin_facet(config, verifiers, result, &bridgehub_info).await;
         self.verify_executor_facet(config, verifiers, result, &bridgehub_info).await;
@@ -618,6 +636,7 @@ impl DeployedAddresses {
         self.verify_transitionary_owner(config, verifiers, result, &bridgehub_info).await;
         self.verify_bridged_token_beacon(config, verifiers, result, &bridgehub_info).await;
         self.verify_message_root(config, verifiers, result, &bridgehub_info).await;
+        self.verify_governance_upgrade_timer(config, verifiers, result, &bridgehub_info).await;
 
         result
             .expect_create2_params(
@@ -655,6 +674,7 @@ impl DeployedAddresses {
         result.expect_create2_params(verifiers, &self.rollup_l1_da_validator_addr, vec![], "da-contracts/RollupL1DAValidator");
         result.expect_create2_params(verifiers, &self.validium_l1_da_validator_addr, vec![], "l1-contracts/ValidiumL1DAValidator");
         result.expect_create2_params(verifiers, &self.bridges.bridged_standard_erc20_impl, vec![], "l1-contracts/BridgedStandardERC20");
+        result.expect_create2_params(verifiers, &self.l1_gateway_upgrade, vec![], "l1-contracts/GatewayUpgrade");
 
         result.report_ok("deployed addresses");
         Ok(())
