@@ -216,6 +216,8 @@ impl Verify for GovernanceStage2Calls {
             .verify(verifiers, result)
             .await?;
 
+        // FIXME: why not check 5th call?
+
         {
             let decoded =
                 singleAddressArgumentCall::abi_decode_raw(&self.calls.elems[6].data[4..], true)

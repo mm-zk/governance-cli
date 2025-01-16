@@ -163,6 +163,7 @@ impl ProposedUpgrade {
             result.report_error("Invalid from");
             errors += 1;
         }
+        // FIXME: better to rename the `Deployer` constant, it may confuse a bit
         if tx.to != U256::from(FixedAddresses::Deployer as u64) {
             result.report_error("Invalid to");
             errors += 1;
@@ -208,6 +209,7 @@ impl ProposedUpgrade {
             errors += 1;
         }
 
+        // FIXME: it is not checked that the bytecodes were actually published
         let deps = tx
             .factoryDeps
             .iter()
@@ -251,7 +253,6 @@ impl ProposedUpgrade {
         }
 
         result.expect_bytecode(verifiers, &self.bootloaderHash, "proved_batch.yul");
-
         result.expect_bytecode(
             verifiers,
             &self.defaultAccountHash,
@@ -270,28 +271,6 @@ impl ProposedUpgrade {
             errors += 1;
         }
 
-        let pv = ProtocolVersion::from(self.newProtocolVersion).to_string();
-
-        pub const EXPECTED_PROTOCOL_VERSION: &str = "v0.26.0";
-        if pv != EXPECTED_PROTOCOL_VERSION {
-            result.report_warn(&format!(
-                "Invalid protocol version: {} - expected {}",
-                pv, EXPECTED_PROTOCOL_VERSION
-            ));
-        }
-
-        let upgrade_deadline = UpgradeDeadline::from(self.upgradeTimestamp);
-
-        result.print_info(&format!("Upgrade timestamp: {}", upgrade_deadline));
-
-        if !upgrade_deadline.deadline_within_day_range(0, 14) {
-            result.report_warn("Upgrade deadline is not within 0 - 14 days from now");
-        }
-
-        if errors > 0 {
-            anyhow::bail!("{} errors", errors)
-        }
-
         // Verifier params should be zero - as everything is hardcoded within the verifier contract itself.
         if self.verifierParams.recursionNodeLevelVkHash != [0u8; 32]
             || self.verifierParams.recursionLeafLevelVkHash != [0u8; 32]
@@ -307,8 +286,22 @@ impl ProposedUpgrade {
         }
 
         let post_upgrade_calldata = PostUpgradeCalldata::parse(&self.postUpgradeCalldata);
-
         post_upgrade_calldata.verify(verifiers, result).await?;
+
+        let upgrade_timestamp = self.upgradeTimestamp;
+        result.print_info(&format!("Upgrade timestamp: {}", upgrade_timestamp));
+        if upgrade_timestamp != U256::default() {
+            result.report_warn("Upgrade timestamp must be zero");
+        }
+
+        let pv = ProtocolVersion::from(self.newProtocolVersion).to_string();
+        pub const EXPECTED_PROTOCOL_VERSION: &str = "v0.26.0";
+        if pv != EXPECTED_PROTOCOL_VERSION {
+            result.report_warn(&format!(
+                "Invalid protocol version: {} - expected {}",
+                pv, EXPECTED_PROTOCOL_VERSION
+            ));
+        }
 
         if errors > 0 {
             anyhow::bail!("{} errors", errors)

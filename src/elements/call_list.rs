@@ -23,6 +23,10 @@ impl CallList {
         CallList::abi_decode_sequence(&hex::decode(hex_data).unwrap(), false).unwrap()
     }
 
+    /// Verifies that the `target` of each call corresponds to the 0th item in each of
+    /// of the `list_of_calls` tuple.
+    /// Also, double checks that the selector of each call corresponds to the function 
+    /// signature in the 1th item in each of the tuple.
     pub fn verify(
         &self,
         list_of_calls: Vec<(&str, &str)>,
