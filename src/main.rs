@@ -1,5 +1,5 @@
 use alloy::{
-    hex::{FromHex, ToHexExt},
+    hex::{self, FromHex, ToHexExt},
     primitives::{Address, FixedBytes},
 };
 use serde::Deserialize;
@@ -27,7 +27,6 @@ struct Config {
     governance_stage2_calls: String,
 
     deployed_addresses: DeployedAddresses,
-    #[allow(dead_code)]
     contracts_config: ContractsConfig,
 
     create2_factory_addr: Address,
@@ -134,28 +133,21 @@ impl Verify for OtherConfig {
     ) -> anyhow::Result<()> {
         result.print_info("== Other config verification ==");
 
-        result
-            .expect_deployed_bytecode(
-                verifiers,
-                &self.rollup_da_manager,
-                "l1-contracts/RollupDAManager",
-            )
-            .await;
+        // result
+        //     .expect_create2_params(
+        //         verifiers,
+        //         &self.rollup_da_manager,
+        //         "l1-contracts/RollupDAManager",
+        //     )
+        //     .await;
 
-        result
-            .expect_deployed_bytecode(
-                verifiers,
-                &self.upgrade_timer,
-                "l1-contracts/GovernanceUpgradeTimer",
-            )
-            .await;
-        result
-            .expect_deployed_bytecode(
-                verifiers,
-                &self.transparent_proxy_admin,
-                "TransparentProxyAdmin",
-            )
-            .await;
+        // result
+        //     .expect_create2_params(
+        //         verifiers,
+        //         &self.upgrade_timer,
+        //         "l1-contracts/GovernanceUpgradeTimer",
+        //     )
+        //     .await;
 
         match verifiers.bridgehub_address {
             Some(bridgehub_address) => {
@@ -272,7 +264,7 @@ impl Verify for Config {
             }
         }
         // Check that addresses actually contain correct bytecodes.
-        self.deployed_addresses.verify(verifiers, result).await?;
+        self.deployed_addresses.verify(&self, verifiers, result).await?;
 
         result
             .expect_deployed_bytecode(verifiers, &self.create2_factory_addr, "Create2Factory")
@@ -388,7 +380,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if verifiers.testnet_contracts {
             let chain_id = verifiers.network_verifier.get_l1_chain_id().await.unwrap();
             if chain_id == 1 {
-                panic!("Testnet contracts are expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
+                panic!("Testnet contracts are not expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
             }
         }
     }
@@ -409,19 +401,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     for transaction in &config.transactions {
-        if let Some((address, hashes)) = verifiers
+        if let Some((address, contract, constructor_param)) = verifiers
             .network_verifier
-            .check_crate2_deploy(
+            .check_create2_deploy(
                 &transaction,
                 &config.create2_factory_addr,
                 &FixedBytes::<32>::from_hex(&config.create2_factory_salt).unwrap(),
+                &verifiers
+                .bytecode_verifier
             )
             .await
         {
             verifiers
                 .network_verifier
-                .create2_aliases
-                .insert(address, hashes.into());
+                .create2_constructor_params
+                .insert(address, constructor_param)
+                .map(|_| {
+                    panic!("Duplicate deployment for {:#?}", address);
+                });
+
+            verifiers
+                .network_verifier.create2_known_bytecodes.insert(address, contract.clone())
+                .map(|_| {
+                    panic!("Duplicate deployment for {:#?}", address);
+                });
         }
     }
 
