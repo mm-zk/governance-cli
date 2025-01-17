@@ -3,8 +3,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::elements::initialize_data_new_chain::{FeeParams, PubdataPricingMode};
 
-use super::{get_contents_from_github, network_verifier::NetworkVerifier};
+use super::{
+    get_contents_from_github,
+    network_verifier::{Bridgehub, NetworkVerifier},
+};
 
+// This value is the slot in the diamond where the fee params are stored. Taken from
+// https://www.notion.so/matterlabs/Upgrade-steps-17aa48363f2380688151e547192e3b79?pvs=4#17aa48363f2380e99862d11605517d54
 const FEE_PARAM_STORAGE_SLOT: u8 = 38u8;
 
 #[derive(Default)]
@@ -28,9 +33,16 @@ impl FeeParamVerifier {
 
     pub async fn init_from_on_chain(
         &mut self,
-        diamond_proxy_address: &Address,
+        bridgehub_addr: &Address,
         network_verifier: &NetworkVerifier,
     ) {
+        let bridgehub = Bridgehub::new(
+            *bridgehub_addr,
+            network_verifier.get_l1_provider().unwrap().clone(),
+        );
+
+        let diamond_proxy_address = &bridgehub.owner().call().await.unwrap()._0;
+
         let value = network_verifier
             .get_storage_at(diamond_proxy_address, FEE_PARAM_STORAGE_SLOT)
             .await;

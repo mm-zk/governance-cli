@@ -21,6 +21,10 @@ sol! {
         function owner() external view returns (address) {
 
         }
+
+        function getHyperchain(uint256 _chainId) external view returns (address chainAddress) {
+
+        }
     }
 
     #[sol(rpc)]
