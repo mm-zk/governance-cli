@@ -16,6 +16,9 @@ use elements::{
     governance_stage1_calls::GovernanceStage1Calls, governance_stage2_calls::GovernanceStage2Calls,
 };
 
+const CONTRACTS_COMMIT: &str = "16dedf6d77695ce00f81fce35a3066381b97fca1";
+const ERA_COMMIT: &str = "ee14cb4826dbec00e9e7d909ed9af3994379df46";
+
 #[derive(Debug, Deserialize)]
 struct Config {
     #[allow(dead_code)]
@@ -314,12 +317,12 @@ struct Args {
     ecosystem_yaml: String,
 
     // Commit from zksync-era repository (used for genesis verification)
-    #[clap(long)]
-    era_commit: Option<String>,
+    #[clap(long, default_value = ERA_COMMIT)]
+    era_commit: String,
 
     // Commit from era-contracts - used for bytecode verification
-    #[clap(long)]
-    contracts_commit: Option<String>,
+    #[clap(long, default_value = CONTRACTS_COMMIT)]
+    contracts_commit: String,
 
     // L1 address
     #[clap(long)]
@@ -339,6 +342,7 @@ struct Args {
 
     #[clap(long)]
     bridgehub_address: Option<String>,
+
 }
 
 #[tokio::main]
@@ -353,14 +357,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse the YAML content
     let mut config: Config = serde_yaml::from_str(&yaml_content)?;
 
-    let mut verifiers = Verifiers::new(args.testnet_contracts, args.bridgehub_address);
+    let mut verifiers = Verifiers::new(args.testnet_contracts, args.bridgehub_address.clone());
 
     verifiers
         .bytecode_verifier
         .init_from_github(
             &args
                 .contracts_commit
-                .unwrap_or("16dedf6d77695ce00f81fce35a3066381b97fca1".to_string()),
+                .clone()
         )
         .await;
 
@@ -368,10 +372,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         GenesisConfig::init_from_github(
             &args
                 .era_commit
-                .unwrap_or("ee14cb4826dbec00e9e7d909ed9af3994379df46".to_string()),
         )
         .await,
     );
+
+    verifiers
+        .fee_param_verifier
+        .init_from_github(
+            &args
+                .contracts_commit
+        )
+        .await;
 
     if let Some(l1_rpc) = &args.l1_rpc {
         verifiers
@@ -383,6 +394,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 panic!("Testnet contracts are not expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
             }
         }
+        verifiers
+            .fee_param_verifier
+            .init_from_on_chain(
+                &Address::from_hex(&args.bridgehub_address.clone().unwrap()).unwrap(),
+                &verifiers.network_verifier,
+            )
+            .await;
     }
 
     if let Some(l2_rpc) = &args.l2_rpc {
@@ -440,6 +458,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     verifiers.bytecode_verifier.add_bytecode_hash(
         FixedBytes::<32>::from_hex(
             "0x1d8a3e7186b2285da5ef3ccf4c63a672e91873f2ffdec522a241f72bfcab11c5",
+        )
+        .unwrap(),
+        "TransparentProxyAdmin".to_string(),
+    );
+
+    // Hash of the proxy admin used for stage proofs
+    // https://sepolia.etherscan.io/address/0x93AEeE8d98fB0873F8fF595fDd534A1f288786D2
+    verifiers.bytecode_verifier.add_bytecode_hash(
+        FixedBytes::<32>::from_hex(
+            "1e651120773914ac75c42598ceac4da0dc3e21709d438937f742ecf916ac30ae",
         )
         .unwrap(),
         "TransparentProxyAdmin".to_string(),
