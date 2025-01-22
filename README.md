@@ -7,6 +7,12 @@ Tool to analyze the zkSync upgrades.
 First, you need to get the gateway_ecosystem_upgrade_output.yaml file.
 (you can find it in zksync-era/configs )
 
+Default commits for **zksync-era** and **era-contracts** are set in the repository.
+Please refer to the example with *--commit* flags, if not the **main** branch is tested.
+Expect to see errors, if no *--commit* flags are not passed for custom branch.
+
+For **testnets**, please provde the *--testnet-contracts* flag.
+
 
 ## Example use:
 
