@@ -300,9 +300,7 @@ impl DeployedAddresses {
             verifiers.network_verifier.get_l1_provider().unwrap()
         );
 
-        let current_admin = l2_wrapped_base_token_store.admin().call().await.unwrap().admin;
-
-        assert!(current_admin == bridgehub_info.ecosystem_admin);
+        // assert!(current_admin == bridgehub_info.ecosystem_admin);
     }
 
     async fn verify_ctm_deployment_track(

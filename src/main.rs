@@ -384,6 +384,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .await;
 
+    if let Some(l2_rpc) = &args.l2_rpc {
+        verifiers
+            .network_verifier
+            .add_l2_network_rpc(l2_rpc.clone());
+    } else {
+        if let Some(l2_chain_id) = args.l2_chain_id {
+            verifiers.network_verifier.add_l2_chain_id(l2_chain_id);
+        }
+    }
+
     if let Some(l1_rpc) = &args.l1_rpc {
         verifiers
             .network_verifier
@@ -401,16 +411,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &verifiers.network_verifier,
             )
             .await;
-    }
-
-    if let Some(l2_rpc) = &args.l2_rpc {
-        verifiers
-            .network_verifier
-            .add_l2_network_rpc(l2_rpc.clone());
-    } else {
-        if let Some(l2_chain_id) = args.l2_chain_id {
-            verifiers.network_verifier.add_l2_chain_id(l2_chain_id);
-        }
     }
 
     println!(
