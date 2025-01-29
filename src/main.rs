@@ -38,7 +38,6 @@ struct Config {
     #[allow(dead_code)]
     deployer_addr: String,
 
-    #[allow(dead_code)]
     owner_address: String,
 
     transactions: Vec<String>,
