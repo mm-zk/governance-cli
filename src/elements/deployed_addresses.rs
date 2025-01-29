@@ -228,7 +228,7 @@ impl DeployedAddresses {
         bridgehub_info: &BridgehubInfo
     ) {
         let l1_ntv_impl_constructor = L1NativeTokenVault::constructorCall::new((bridgehub_info.l1_weth_token_address, config.deployed_addresses.bridges.shared_bridge_proxy_addr, bridgehub_info.shared_bridge)).abi_encode();
-        let l1_ntv_init_calldata = L1NativeTokenVault::initializeCall::new((bridgehub_info.owner, self.bridges.bridged_token_beacon)).abi_encode();
+        let l1_ntv_init_calldata = L1NativeTokenVault::initializeCall::new((Address::from_str(&config.owner_address).unwrap(), self.bridges.bridged_token_beacon)).abi_encode();
 
         result
             .expect_create2_params_proxy_with_bytecode(
