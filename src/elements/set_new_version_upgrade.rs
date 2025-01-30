@@ -163,8 +163,7 @@ impl ProposedUpgrade {
             result.report_error("Invalid from");
             errors += 1;
         }
-        // FIXME: better to rename the `Deployer` constant, it may confuse a bit
-        if tx.to != U256::from(FixedAddresses::Deployer as u64) {
+        if tx.to != U256::from(FixedAddresses::DeployerSystemContract as u64) {
             result.report_error("Invalid to");
             errors += 1;
         }

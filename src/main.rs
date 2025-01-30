@@ -24,8 +24,7 @@ struct Config {
     #[allow(dead_code)]
     chain_upgrade_diamond_cut: String,
     era_chain_id: u64,
-    #[allow(dead_code)]
-    l1_chain_id: u64,
+    pub(crate) l1_chain_id: u64,
     governance_stage1_calls: String,
     governance_stage2_calls: String,
 

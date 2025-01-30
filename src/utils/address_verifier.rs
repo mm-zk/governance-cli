@@ -3,7 +3,7 @@ use alloy::primitives::{map::HashMap, Address};
 pub enum FixedAddresses {
     _Bootloader = 0x8001,
     _NonceHolder = 0x8003,
-    Deployer = 0x8006,
+    DeployerSystemContract = 0x8006,
     ForceDeployer = 0x8007,
 }
 
