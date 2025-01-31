@@ -38,7 +38,7 @@ struct Config {
     #[allow(dead_code)]
     deployer_addr: String,
 
-    owner_address: String,
+    protocol_upgrade_handler_proxy_address: String,
 
     transactions: Vec<String>,
 

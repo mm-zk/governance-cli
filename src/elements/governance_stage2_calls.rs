@@ -164,6 +164,10 @@ impl Verify for GovernanceStage2Calls {
                 "upgrade_timer",
                 "checkDeadline()",
             ),
+            (
+                "transparent_proxy_admin",
+                "upgrade(address,address)",
+            ),
         ];
 
         self.calls.verify(list_of_calls.into(), verifiers, result)?;
