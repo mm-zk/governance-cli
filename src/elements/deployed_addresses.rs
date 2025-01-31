@@ -1,11 +1,12 @@
 use std::str::FromStr;
 
 use crate::{traits::Verify, utils::{address_verifier::AddressVerifier, network_verifier::BridgehubInfo}, Config};
-use alloy::{primitives::{Address, U256}, sol, sol_types::{SolCall, SolConstructor, SolValue}};
+use alloy::{primitives::{Address, U256}, providers::Provider, sol, sol_types::{SolCall, SolConstructor, SolValue}};
+use reqwest::get;
 use serde::Deserialize;
 use L2WrappedBaseTokenStore::L2WrappedBaseTokenStoreCalls;
 
-use super::protocol_version::ProtocolVersion;
+use super::{protocol_version::ProtocolVersion, set_new_version_upgrade::{Action, FacetCut}};
 
 const MAINNET_CHAIN_ID: u64 = 1;
 
@@ -100,9 +101,18 @@ sol! {
         function l2BridgeAddress(uint256 chainId) public view override returns (address l2SharedBridgeAddress);
     }
 
+    /// @notice Faсet structure compatible with the EIP-2535 diamond loupe
+    /// @param addr The address of the facet contract
+    /// @param selectors The NON-sorted array with selectors associated with facet
+    struct Facet {
+        address addr;
+        bytes4[] selectors;
+    }
+
     #[sol(rpc)]
     contract GettersFacet {
         function getProtocolVersion() external view returns (uint256);
+        function facets() external view returns (Facet[] memory result);
     }
 
     contract AdminFacet {
@@ -147,19 +157,20 @@ sol! {
 
 #[derive(Debug, Deserialize)]
 pub struct DeployedAddresses {
-    native_token_vault_addr: Address,
-    validator_timelock_addr: Address,
-    l2_wrapped_base_token_store_addr: Address,
-    l1_bytecodes_supplier_addr: Address,
-    rollup_l1_da_validator_addr: Address,
-    validium_l1_da_validator_addr: Address,
-    l1_transitionary_owner: Address,
-    l1_rollup_da_manager: Address,
-    l1_gateway_upgrade: Address,
-    l1_governance_upgrade_timer: Address,
-    bridges: Bridges,
-    bridgehub: Bridgehub,
-    state_transition: StateTransition,
+    pub(crate) native_token_vault_addr: Address,
+    pub(crate) validator_timelock_addr: Address,
+    pub(crate) l2_wrapped_base_token_store_addr: Address,
+    pub(crate) l1_bytecodes_supplier_addr: Address,
+    pub(crate) rollup_l1_da_validator_addr: Address,
+    pub(crate) validium_l1_da_validator_addr: Address,
+    pub(crate) l1_transitionary_owner: Address,
+    pub(crate) l1_rollup_da_manager: Address,
+    pub(crate) l1_gateway_upgrade: Address,
+    pub(crate) l1_governance_upgrade_timer: Address,
+    pub(crate) gateway_upgrade_address: Address,
+    pub(crate) bridges: Bridges,
+    pub(crate) bridgehub: Bridgehub,
+    pub(crate) state_transition: StateTransition,
 }
 
 #[derive(Debug, Deserialize)]
@@ -304,11 +315,6 @@ impl DeployedAddresses {
         result: &mut crate::traits::VerificationResult,
         bridgehub_info: &BridgehubInfo
     ) {
-        // FIXME: ensure to verify the contents of it, i.e. 
-        // ensure that for each chain a wrapped base token is stored.
-        // A lack of a token is just a warning. This should probably be done
-        // in a separate section together with ensuring the presence of the l2 shared bridge
-
         let deployer_addr = Address::from_str(&config.deployer_addr).unwrap();
 
         result.expect_create2_params(verifiers, &self.l2_wrapped_base_token_store_addr, L2WrappedBaseTokenStore::constructorCall::new((Address::from_str(&config.owner_address).unwrap(), deployer_addr)).abi_encode(), "l1-contracts/L2WrappedBaseTokenStore");
@@ -491,8 +497,6 @@ impl DeployedAddresses {
         result: &mut crate::traits::VerificationResult,
         bridgehub_info: &BridgehubInfo
     ) {
-        // FIXME: this should be pulled from config somewhere, though the number is
-        // correct for all envs.
         const MAX_NUMBER_OF_CHAINS: usize = 100;
         result.expect_create2_params(
             verifiers, 
@@ -603,8 +607,6 @@ impl DeployedAddresses {
 
         let current_owner = rollup_da_manager.owner().call().await.unwrap().owner;
         assert!(current_owner == self.l1_transitionary_owner);
-
-        // FIXME (bonus): we should also check that nothing else has been whitelisted.
     }
 
     async fn verify_transitionary_owner(
@@ -677,6 +679,57 @@ impl DeployedAddresses {
 
         result.expect_create2_params(verifiers, &self.l1_governance_upgrade_timer, expected_constructor_params, "l1-contracts/GovernanceUpgradeTimer");
     }
+
+    async fn get_facet_cut(verifiers: &crate::traits::Verifiers, facet_to_add: Address, is_freezable: bool) -> FacetCut {
+        let provider = verifiers.network_verifier.get_l1_provider().unwrap();
+
+        let code = provider.get_code_at(facet_to_add).await.unwrap();
+
+        let info = evmole::contract_info(evmole::ContractInfoArgs::new(&code.0));
+
+        let selectors: Vec<_> = info.functions.unwrap().into_iter().map(|f| alloy::core::primitives::FixedBytes::<4>::from(f.selector)).collect();
+
+        FacetCut {
+            facet: facet_to_add,
+            action: Action::Add,
+            isFreezable: is_freezable,
+            selectors,
+        }
+    }
+
+    // Verifies the correctness of the upgrade and returns the expected facet cut to apply the facets
+    pub async fn get_expected_facet_cuts(
+        &self,
+        config: &Config,
+        verifiers: &crate::traits::Verifiers,
+    ) -> anyhow::Result<Vec<FacetCut>> {
+        // fixme: remove unwrap
+        let bridgehub_addr = config.other_config.as_ref().unwrap().bridgehub_proxy;
+
+        let Some(bridgehub_info) = verifiers.network_verifier.get_bridgehub_info(bridgehub_addr).await else {
+            anyhow::bail!("Can not verify deployed addresses without bridgehub");
+        };
+
+        let stm = StateTransitionManagerLegacy::new(
+            bridgehub_info.stm_address.unwrap(),
+            verifiers.network_verifier.get_l1_provider().unwrap()
+        );
+
+        let era_address = stm.getHyperchain(U256::from(config.era_chain_id)).call().await.unwrap().chainAddress;
+
+        
+        let getters_facet  = GettersFacet::new(
+            era_address,
+            verifiers.network_verifier.get_l1_provider().unwrap()
+        );
+
+        let current_facets = getters_facet.facets().call().await.unwrap().result;
+
+        // fixme: ensure that the facets are deleted.
+        // fixme: ensure that the new facets are included. 
+
+        Ok(vec![])
+    }   
 
     pub async fn verify(
         &self,
@@ -752,6 +805,7 @@ impl DeployedAddresses {
         result.expect_create2_params(verifiers, &self.validium_l1_da_validator_addr, vec![], "l1-contracts/ValidiumL1DAValidator");
         result.expect_create2_params(verifiers, &self.bridges.bridged_standard_erc20_impl, vec![], "l1-contracts/BridgedStandardERC20");
         result.expect_create2_params(verifiers, &self.l1_gateway_upgrade, vec![], "l1-contracts/GatewayUpgrade");
+        result.expect_create2_params(verifiers, &self.gateway_upgrade_address, vec![], "l1-contracts/GatewayUpgrade");
 
         result.report_ok("deployed addresses");
         Ok(())

@@ -1,4 +1,4 @@
-use alloy::sol_types::SolCall;
+use alloy::{primitives::U256, sol_types::SolCall};
 
 use crate::{
     elements::{
@@ -9,17 +9,29 @@ use crate::{
 };
 
 use super::{
-    call_list::CallList, governance_stage2_calls::setValidatorTimelockCall,
-    set_new_version_upgrade::setNewVersionUpgradeCall,
+    call_list::CallList, deployed_addresses::DeployedAddresses, governance_stage2_calls::{setValidatorTimelockCall, DiamondCutData}, set_new_version_upgrade::{setNewVersionUpgradeCall, FacetCut}
 };
 
 pub struct GovernanceStage1Calls {
     pub calls: CallList,
 }
 
-impl Verify for GovernanceStage1Calls {
-    async fn verify(
+async fn verity_facet_cuts(
+    facet_cuts: &[FacetCut],
+    deployed_addresses: &DeployedAddresses,
+    verifiers: &crate::traits::Verifiers,
+    result: &mut crate::traits::VerificationResult,
+) {
+    // Facets cuts must contain firstly facets to be deleted,
+    // and then the ones to be added.
+
+    // FIXME: implement
+}
+
+impl GovernanceStage1Calls {
+    pub(crate) async fn verify(
         &self,
+        deployed_addresses: &DeployedAddresses,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
@@ -42,11 +54,7 @@ impl Verify for GovernanceStage1Calls {
 
         self.calls.verify(list_of_calls.into(), verifiers, result)?;
 
-        // The only - non-trivial call is setNewVersionUpgrade.
-
-        let calldata = &self.calls.elems[4].data;
-        let data = setNewVersionUpgradeCall::abi_decode(calldata, true).unwrap();
-
+        // The only non-trivial calls are setNewVersionUpgrade and `setValidatorTimelock`.
         {
             let decoded =
                 setValidatorTimelockCall::abi_decode(&self.calls.elems[5].data, true).unwrap();
@@ -54,6 +62,12 @@ impl Verify for GovernanceStage1Calls {
             result.expect_address(verifiers, &decoded.addr, "validator_timelock");
         }
 
+        let calldata = &self.calls.elems[4].data;
+        let data = setNewVersionUpgradeCall::abi_decode(calldata, true).unwrap();
+
+        if data.oldProtocolVersionDeadline != U256::MAX {
+            result.report_error("Wrong old protocol version deadline for stage1 call");
+        }
         let deadline = UpgradeDeadline {
             deadline: data.oldProtocolVersionDeadline,
         };
@@ -63,16 +77,19 @@ impl Verify for GovernanceStage1Calls {
             "Protocol versions: from: {} to: {} deadline: {}",
             old_protocol_version, new_protocol_version, deadline
         ));
-        // FIXME: infinity is expected and is measured inside governanceupgradetimer.
-        if !deadline.deadline_within_day_range(3, 14) {
-            result.report_warn(&format!(
-                "Expected upgrade deadline to be within 3 - 14 days from now, but it is {}",
-                deadline
-            ));
+
+        let diamond_cut = data.diamondCut;
+
+        if diamond_cut.initAddress != deployed_addresses.gateway_upgrade_address {
+            result.report_error(&format!("Unexpected init address for the diamond cut: {}, expected {}", diamond_cut.initAddress, deployed_addresses.gateway_upgrade_address));
         }
 
-        // FIXME: What about the other fields of the diamondcut?
-        let diamond_cut = data.diamondCut;
+        verity_facet_cuts(
+            &diamond_cut.facetCuts, 
+            deployed_addresses,
+            verifiers,
+            result
+        ).await;
 
         let upgrade = upgradeCall::abi_decode(&diamond_cut.initCalldata, true).unwrap();
 

@@ -281,7 +281,7 @@ impl Verify for Config {
             calls: CallList::parse(&self.governance_stage1_calls),
         };
 
-        stage1.verify(verifiers, result).await?;
+        stage1.verify(&self.deployed_addresses, verifiers, result).await?;
 
         let stage2 = GovernanceStage2Calls {
             calls: CallList::parse(&self.governance_stage2_calls),
