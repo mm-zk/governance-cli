@@ -1,4 +1,4 @@
-use alloy::primitives::{Address, Uint};
+use alloy::primitives::{Address, Uint, U256};
 use serde::{Deserialize, Serialize};
 
 use crate::elements::initialize_data_new_chain::{FeeParams, PubdataPricingMode};
@@ -34,14 +34,14 @@ impl FeeParamVerifier {
     pub async fn init_from_on_chain(
         &mut self,
         bridgehub_addr: &Address,
-        network_verifier: &NetworkVerifier,
+        network_verifier: &NetworkVerifier    
     ) {
         let bridgehub = Bridgehub::new(
             *bridgehub_addr,
             network_verifier.get_l1_provider().unwrap().clone(),
         );
 
-        let diamond_proxy_address = &bridgehub.owner().call().await.unwrap()._0;
+        let diamond_proxy_address = &bridgehub.getHyperchain(U256::from(network_verifier.l2_chain_id.unwrap())).call().await.unwrap().chainAddress;
 
         let value = network_verifier
             .get_storage_at(diamond_proxy_address, FEE_PARAM_STORAGE_SLOT)

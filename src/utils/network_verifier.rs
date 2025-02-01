@@ -50,7 +50,6 @@ pub struct BridgehubInfo {
     pub shared_bridge: Address,
     pub legacy_bridge: Address,
     pub stm_address: Option<Address>,
-    pub owner: Address,
     pub transparent_proxy_admin: Address,
     pub l1_weth_token_address: Address,
     pub ecosystem_admin: Address,
@@ -205,7 +204,6 @@ impl NetworkVerifier {
                 None
             };
 
-            let owner = bridgehub.owner().call().await.unwrap()._0;
             let ecosystem_admin = bridgehub.admin().call().await.unwrap().admin;
 
             let transparent_proxy_admin = self.storage_at(&bridgehub_addr, &FixedBytes::<32>::from_hex(EIP1967_PROXY_ADMIN_SLOT).unwrap()).await?;
@@ -217,7 +215,6 @@ impl NetworkVerifier {
                 shared_bridge: shared_bridge_address,
                 legacy_bridge,
                 stm_address,
-                owner,
                 transparent_proxy_admin: Address::from_slice(&transparent_proxy_admin[12..]),
                 l1_weth_token_address,
                 ecosystem_admin,
