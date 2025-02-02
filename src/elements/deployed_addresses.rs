@@ -258,7 +258,7 @@ impl DeployedAddresses {
         bridgehub_info: &BridgehubInfo
     ) {
         let l1_ntv_impl_constructor = L1NativeTokenVault::constructorCall::new((bridgehub_info.l1_weth_token_address, config.deployed_addresses.bridges.shared_bridge_proxy_addr, bridgehub_info.shared_bridge)).abi_encode();
-        let l1_ntv_init_calldata = L1NativeTokenVault::initializeCall::new((Address::from_str(&config.owner_address).unwrap(), self.bridges.bridged_token_beacon)).abi_encode();
+        let l1_ntv_init_calldata = L1NativeTokenVault::initializeCall::new((Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap(), self.bridges.bridged_token_beacon)).abi_encode();
 
         result
             .expect_create2_params_proxy_with_bytecode(
@@ -317,7 +317,7 @@ impl DeployedAddresses {
     ) {
         let deployer_addr = Address::from_str(&config.deployer_addr).unwrap();
 
-        result.expect_create2_params(verifiers, &self.l2_wrapped_base_token_store_addr, L2WrappedBaseTokenStore::constructorCall::new((Address::from_str(&config.owner_address).unwrap(), deployer_addr)).abi_encode(), "l1-contracts/L2WrappedBaseTokenStore");
+        result.expect_create2_params(verifiers, &self.l2_wrapped_base_token_store_addr, L2WrappedBaseTokenStore::constructorCall::new((Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap(), deployer_addr)).abi_encode(), "l1-contracts/L2WrappedBaseTokenStore");
 
         let l2_wrapped_base_token_store = L2WrappedBaseTokenStore::new(
             self.l2_wrapped_base_token_store_addr,
@@ -501,7 +501,7 @@ impl DeployedAddresses {
         result.expect_create2_params(
             verifiers, 
             &self.bridgehub.bridgehub_implementation_addr, 
-            BridgehubImpl::constructorCall::new((U256::from(config.l1_chain_id), Address::from_str(&config.owner_address).unwrap(), U256::from(MAX_NUMBER_OF_CHAINS))).abi_encode(), 
+            BridgehubImpl::constructorCall::new((U256::from(config.l1_chain_id), Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap(), U256::from(MAX_NUMBER_OF_CHAINS))).abi_encode(), 
             "l1-contracts/Bridgehub"
         );
     }
@@ -619,7 +619,7 @@ impl DeployedAddresses {
         result.expect_create2_params(
             verifiers, 
             &self.l1_transitionary_owner, 
-            TransitionaryOwner::constructorCall::new((Address::from_str(&config.owner_address).unwrap(),)).abi_encode(),
+            TransitionaryOwner::constructorCall::new((Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap(),)).abi_encode(),
              "l1-contracts/TransitionaryOwner"
         );
 
@@ -674,7 +674,7 @@ impl DeployedAddresses {
         const MAX_INITIAL_DELAY: u32 = 1209600;
 
         let expected_constructor_params = GovernanceUpgradeTimer::constructorCall::new(
-            (U256::from(INITIAL_DELAY), U256::from(MAX_INITIAL_DELAY), Address::from_str(&config.owner_address).unwrap(), bridgehub_info.ecosystem_admin)
+            (U256::from(INITIAL_DELAY), U256::from(MAX_INITIAL_DELAY), Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap(), bridgehub_info.ecosystem_admin)
         ).abi_encode();
 
         result.expect_create2_params(verifiers, &self.l1_governance_upgrade_timer, expected_constructor_params, "l1-contracts/GovernanceUpgradeTimer");
