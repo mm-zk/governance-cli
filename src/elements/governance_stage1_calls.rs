@@ -1,4 +1,6 @@
-use alloy::{primitives::U256, sol_types::SolCall};
+use std::str::FromStr;
+
+use alloy::{primitives::{Address, U256}, sol, sol_types::SolCall};
 
 use crate::{
     elements::{
@@ -11,6 +13,43 @@ use crate::{
 use super::{
     call_list::CallList, deployed_addresses::DeployedAddresses, governance_stage2_calls::{setValidatorTimelockCall, DiamondCutData}, set_new_version_upgrade::{setNewVersionUpgradeCall, FacetCut}
 };
+
+sol! {
+    contract StateTransitionManagerLegacy {
+        #[derive(Debug, PartialEq)]
+        enum Action {
+            Add,
+            Replace,
+            Remove
+        }
+    
+        #[derive(Debug)]
+        struct FacetCut {
+            address facet;
+            Action action;
+            bool isFreezable;
+            bytes4[] selectors;
+        }
+    
+        #[derive(Debug)]
+        struct DiamondCutData {
+            FacetCut[] facetCuts;
+            address initAddress;
+            bytes initCalldata;
+        }
+        struct ChainCreationParams {
+            address genesisUpgrade;
+            bytes32 genesisBatchHash;
+            uint64 genesisIndexRepeatedStorageChanges;
+            bytes32 genesisBatchCommitment;
+            DiamondCutData diamondCut;
+        }
+    
+        function setChainCreationParams(ChainCreationParams calldata _chainCreationParams)  {
+        }
+    
+    }  
+}
 
 pub struct GovernanceStage1Calls {
     pub calls: CallList,
@@ -48,18 +87,29 @@ impl GovernanceStage1Calls {
                 "state_transition_manager",
                 "setValidatorTimelock(address)",
             ),
+            ("state_transition_manager","setChainCreationParams((address,bytes32,uint64,bytes32,((address,uint8,bool,bytes4[])[],address,bytes)))"),
             ("upgrade_timer", "startTimer()"),
 
         ];
 
         self.calls.verify(list_of_calls.into(), verifiers, result)?;
 
-        // The only non-trivial calls are setNewVersionUpgrade and `setValidatorTimelock`.
+        // Checking the new validator timelock
         {
             let decoded =
                 setValidatorTimelockCall::abi_decode(&self.calls.elems[5].data, true).unwrap();
 
             result.expect_address(verifiers, &decoded.addr, "validator_timelock");
+        }
+        // Checking the dummy chain creation params
+        {
+            let decoded = StateTransitionManagerLegacy::setChainCreationParamsCall::abi_decode(&self.calls.elems[6].data, true).unwrap();
+
+            // Any sort of data is accepted there as long as the `genesisUpgrade` is a definitely invalid address, which
+            // cause new chain creation to revert.
+            if decoded._chainCreationParams.genesisUpgrade != Address::from_str("0x0000000000000000000000000000000000000001").unwrap() {
+                result.report_error("Invalid dummy chain creation params in stage1");
+            } 
         }
 
         let calldata = &self.calls.elems[4].data;

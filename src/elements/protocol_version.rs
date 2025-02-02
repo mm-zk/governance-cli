@@ -16,7 +16,7 @@ impl From<U256> for ProtocolVersion {
                 .wrapping_rem(rem)
                 .try_into()
                 .unwrap(),
-            minor: (value.checked_shr(32.try_into().unwrap()).unwrap())
+            minor: (value.overflowing_shr(32.try_into().unwrap()).0)
                 .wrapping_rem(rem)
                 .try_into()
                 .unwrap(),

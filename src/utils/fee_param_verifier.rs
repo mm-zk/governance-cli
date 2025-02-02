@@ -41,7 +41,7 @@ impl FeeParamVerifier {
             network_verifier.get_l1_provider().unwrap().clone(),
         );
 
-        let diamond_proxy_address = &bridgehub.getHyperchain(U256::from(network_verifier.l2_chain_id.unwrap())).call().await.unwrap().chainAddress;
+        let diamond_proxy_address = &bridgehub.getHyperchain(U256::from(network_verifier.l2_chain_id)).call().await.unwrap().chainAddress;
 
         let value = network_verifier
             .get_storage_at(diamond_proxy_address, FEE_PARAM_STORAGE_SLOT)

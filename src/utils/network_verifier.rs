@@ -49,7 +49,7 @@ const EIP1967_PROXY_ADMIN_SLOT: &str = "0xb53127684a568b3173ae13b9f8a6016e243e63
 pub struct BridgehubInfo {
     pub shared_bridge: Address,
     pub legacy_bridge: Address,
-    pub stm_address: Option<Address>,
+    pub stm_address: Address,
     pub transparent_proxy_admin: Address,
     pub l1_weth_token_address: Address,
     pub ecosystem_admin: Address,
@@ -60,7 +60,7 @@ pub struct BridgehubInfo {
 pub struct NetworkVerifier {
     pub l1_rpc: Option<String>,
     pub l2_rpc: Option<String>,
-    pub l2_chain_id: Option<u64>,
+    pub l2_chain_id: u64,
 
     // todo: maybe merge into one struct.
     pub create2_known_bytecodes: HashMap<Address, String>,
@@ -76,14 +76,14 @@ impl NetworkVerifier {
     }
 
     pub fn add_l2_chain_id(&mut self, l2_chain_id: u64) {
-        self.l2_chain_id = Some(l2_chain_id)
+        self.l2_chain_id = l2_chain_id
     }
 
-    pub async fn get_l2_chain_id(&self) -> Option<u64> {
+    pub async fn get_l2_chain_id(&self) -> u64 {
         if let Some(network) = self.l2_rpc.as_ref() {
             let provider = ProviderBuilder::new().on_http(network.parse().unwrap());
             let chain_id = provider.get_chain_id().await.unwrap();
-            Some(chain_id)
+            chain_id
         } else {
             self.l2_chain_id
         }
@@ -177,7 +177,12 @@ impl NetworkVerifier {
         let network = self.l1_rpc.as_ref()?;
 
         Some(ProviderBuilder::new().on_http(network.parse().unwrap()))
-    } 
+    }
+
+    pub async fn get_proxy_admin(&self, addr: Address) -> Address {
+        let addr_as_bytes = self.storage_at(&addr, &FixedBytes::<32>::from_hex(EIP1967_PROXY_ADMIN_SLOT).unwrap()).await.unwrap();
+        Address::from_slice(&addr_as_bytes[12..])
+    }
 
     pub async fn get_bridgehub_info(&self, bridgehub_addr: Address) -> Option<BridgehubInfo> {
         if let Some(network) = self.l1_rpc.as_ref() {
@@ -191,22 +196,17 @@ impl NetworkVerifier {
 
             let l2_chain_id = self.get_l2_chain_id().await;
 
-            let stm_address = if let Some(l2_chain_id) = l2_chain_id {
-                Some(
+            let stm_address = 
                     bridgehub
                         .stateTransitionManager(l2_chain_id.try_into().unwrap())
                         .call()
                         .await
                         .unwrap()
-                        ._0,
-                )
-            } else {
-                None
-            };
+                        ._0;
 
             let ecosystem_admin = bridgehub.admin().call().await.unwrap().admin;
 
-            let transparent_proxy_admin = self.storage_at(&bridgehub_addr, &FixedBytes::<32>::from_hex(EIP1967_PROXY_ADMIN_SLOT).unwrap()).await?;
+            let transparent_proxy_admin = self.get_proxy_admin(bridgehub_addr).await;
 
             let legacy_bridge = shared_bridge.legacyBridge().call().await.unwrap()._0;
             let l1_weth_token_address = shared_bridge.L1_WETH_TOKEN().call().await.unwrap()._0;
@@ -215,7 +215,7 @@ impl NetworkVerifier {
                 shared_bridge: shared_bridge_address,
                 legacy_bridge,
                 stm_address,
-                transparent_proxy_admin: Address::from_slice(&transparent_proxy_admin[12..]),
+                transparent_proxy_admin,
                 l1_weth_token_address,
                 ecosystem_admin,
                 bridgehub_addr

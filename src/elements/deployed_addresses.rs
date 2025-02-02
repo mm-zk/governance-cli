@@ -227,6 +227,8 @@ impl DeployedAddresses {
             self.bridges.erc20_bridge_implementation_addr,
             "erc20_bridge_implementation_addr",
         );
+        address_verifier.add_address(self.l1_rollup_da_manager, "rollup_da_manager");
+        address_verifier.add_address(self.l1_governance_upgrade_timer, "upgrade_timer");
         self.state_transition.add_to_verifier(address_verifier);
     }
 }
@@ -257,7 +259,7 @@ impl DeployedAddresses {
         bridgehub_info: &BridgehubInfo
     ) {
         let l1_ntv_impl_constructor = L1NativeTokenVault::constructorCall::new((bridgehub_info.l1_weth_token_address, config.deployed_addresses.bridges.shared_bridge_proxy_addr, bridgehub_info.shared_bridge)).abi_encode();
-        let l1_ntv_init_calldata = L1NativeTokenVault::initializeCall::new((Address::from_str(&config.owner_address).unwrap(), self.bridges.bridged_token_beacon)).abi_encode();
+        let l1_ntv_init_calldata = L1NativeTokenVault::initializeCall::new((Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap(), self.bridges.bridged_token_beacon)).abi_encode();
 
         result
             .expect_create2_params_proxy_with_bytecode(
@@ -304,7 +306,7 @@ impl DeployedAddresses {
         assert!(current_execution_delay == execution_delay);
         
         let chain_type_manager = validator_timelock.chainTypeManager().call().await.unwrap().chainTypeManager;
-        assert!(chain_type_manager == bridgehub_info.stm_address.unwrap());
+        assert!(chain_type_manager == bridgehub_info.stm_address);
     }
 
     async fn verify_wrapped_base_token_store(
@@ -316,7 +318,7 @@ impl DeployedAddresses {
     ) {
         let deployer_addr = Address::from_str(&config.deployer_addr).unwrap();
 
-        result.expect_create2_params(verifiers, &self.l2_wrapped_base_token_store_addr, L2WrappedBaseTokenStore::constructorCall::new((Address::from_str(&config.owner_address).unwrap(), deployer_addr)).abi_encode(), "l1-contracts/L2WrappedBaseTokenStore");
+        result.expect_create2_params(verifiers, &self.l2_wrapped_base_token_store_addr, L2WrappedBaseTokenStore::constructorCall::new((Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap(), deployer_addr)).abi_encode(), "l1-contracts/L2WrappedBaseTokenStore");
 
         let l2_wrapped_base_token_store = L2WrappedBaseTokenStore::new(
             self.l2_wrapped_base_token_store_addr,
@@ -331,7 +333,7 @@ impl DeployedAddresses {
             println!("l2_wrapped_base_token_store_admin not equal to the ecosystem admin");
         }
         // TODO: less code repetition about unwrapping the address
-        assert!(l2_wrapped_base_token_store_owner == Address::from_str(&config.owner_address).unwrap());
+        assert!(l2_wrapped_base_token_store_owner == Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap());
 
         // Note that the content of the l2 wrapped base teken store is verified as a part of the `verify_per_chain_info` method.
     }
@@ -354,7 +356,7 @@ impl DeployedAddresses {
         );
 
         let stm = StateTransitionManagerLegacy::new(
-            bridgehub_info.stm_address.unwrap(),
+            bridgehub_info.stm_address,
             verifiers.network_verifier.get_l1_provider().unwrap()
         );
 
@@ -428,7 +430,7 @@ impl DeployedAddresses {
         result: &mut crate::traits::VerificationResult,
         bridgehub_info: &BridgehubInfo
     ) {
-        let era_diamond_proxy = verifiers.network_verifier.get_chain_diamond_proxy(bridgehub_info.stm_address.unwrap(), config.era_chain_id).await.unwrap();
+        let era_diamond_proxy = verifiers.network_verifier.get_chain_diamond_proxy(bridgehub_info.stm_address, config.era_chain_id).await.unwrap();
         let l1_asset_router_impl_constructor = L1AssetRouter::constructorCall::new((bridgehub_info.l1_weth_token_address,bridgehub_info.bridgehub_addr, bridgehub_info.shared_bridge, U256::from(config.era_chain_id), era_diamond_proxy)).abi_encode();
         let deployer_addr = Address::from_str(&config.deployer_addr).unwrap();
         let l1_asset_router_init_calldata = L1AssetRouter::initializeCall::new((deployer_addr,)).abi_encode();
@@ -466,7 +468,7 @@ impl DeployedAddresses {
         result: &mut crate::traits::VerificationResult,
         bridgehub_info: &BridgehubInfo
     ) {
-        let era_diamond_proxy = verifiers.network_verifier.get_chain_diamond_proxy(bridgehub_info.stm_address.unwrap(), config.era_chain_id).await.unwrap();
+        let era_diamond_proxy = verifiers.network_verifier.get_chain_diamond_proxy(bridgehub_info.stm_address, config.era_chain_id).await.unwrap();
         let l1nullifier_constructor_data = L1Nullifier::constructorCall::new(
             (bridgehub_info.bridgehub_addr, U256::from(config.era_chain_id), era_diamond_proxy)
         ).abi_encode();
@@ -500,7 +502,7 @@ impl DeployedAddresses {
         result.expect_create2_params(
             verifiers, 
             &self.bridgehub.bridgehub_implementation_addr, 
-            BridgehubImpl::constructorCall::new((U256::from(config.l1_chain_id), Address::from_str(&config.owner_address).unwrap(), U256::from(MAX_NUMBER_OF_CHAINS))).abi_encode(), 
+            BridgehubImpl::constructorCall::new((U256::from(config.l1_chain_id), Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap(), U256::from(MAX_NUMBER_OF_CHAINS))).abi_encode(), 
             "l1-contracts/Bridgehub"
         );
     }
@@ -618,7 +620,7 @@ impl DeployedAddresses {
         result.expect_create2_params(
             verifiers, 
             &self.l1_transitionary_owner, 
-            TransitionaryOwner::constructorCall::new((Address::from_str(&config.owner_address).unwrap(),)).abi_encode(),
+            TransitionaryOwner::constructorCall::new((Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap(),)).abi_encode(),
              "l1-contracts/TransitionaryOwner"
         );
 
@@ -668,12 +670,17 @@ impl DeployedAddresses {
         result: &mut crate::traits::VerificationResult,
         bridgehub_info: &BridgehubInfo  
     ) {
-        // FIXME: this should be loaded from some file.
-        const INITIAL_DELAY: u32 = 86400;
+        // If it is either testnet or mainnet, we allow initial delay of 2 weeks,
+        // otherwise it is one day.
+        let initial_delay = if config.era_chain_id == 300 || config.l1_chain_id == 1 {
+            2 * 7 * 24 * 3600
+        } else {
+            24 * 3600
+        };
         const MAX_INITIAL_DELAY: u32 = 1209600;
 
         let expected_constructor_params = GovernanceUpgradeTimer::constructorCall::new(
-            (U256::from(INITIAL_DELAY), U256::from(MAX_INITIAL_DELAY), Address::from_str(&config.owner_address).unwrap(), bridgehub_info.ecosystem_admin)
+            (U256::from(initial_delay), U256::from(MAX_INITIAL_DELAY), Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap(), bridgehub_info.ecosystem_admin)
         ).abi_encode();
 
         result.expect_create2_params(verifiers, &self.l1_governance_upgrade_timer, expected_constructor_params, "l1-contracts/GovernanceUpgradeTimer");
@@ -703,14 +710,14 @@ impl DeployedAddresses {
         verifiers: &crate::traits::Verifiers,
     ) -> anyhow::Result<Vec<FacetCut>> {
         // fixme: remove unwrap
-        let bridgehub_addr = config.other_config.as_ref().unwrap().bridgehub_proxy;
+        let bridgehub_addr = verifiers.bridgehub_address;
 
         let Some(bridgehub_info) = verifiers.network_verifier.get_bridgehub_info(bridgehub_addr).await else {
             anyhow::bail!("Can not verify deployed addresses without bridgehub");
         };
 
         let stm = StateTransitionManagerLegacy::new(
-            bridgehub_info.stm_address.unwrap(),
+            bridgehub_info.stm_address,
             verifiers.network_verifier.get_l1_provider().unwrap()
         );
 
@@ -736,8 +743,7 @@ impl DeployedAddresses {
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
-        // fixme: remove unwrap
-        let bridgehub_addr = config.other_config.as_ref().unwrap().bridgehub_proxy;
+        let bridgehub_addr = verifiers.bridgehub_address;
 
         let Some(bridgehub_info) = verifiers.network_verifier.get_bridgehub_info(bridgehub_addr).await else {
             anyhow::bail!("Can not verify deployed addresses without bridgehub");

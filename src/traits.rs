@@ -20,7 +20,7 @@ sol! {
 #[derive(Default)]
 pub struct Verifiers {
     pub testnet_contracts: bool,
-    pub bridgehub_address: Option<Address>,
+    pub bridgehub_address: Address,
     pub selector_verifier: SelectorVerifier,
     pub address_verifier: AddressVerifier,
     pub bytecode_verifier: BytecodeVerifier,
@@ -30,12 +30,25 @@ pub struct Verifiers {
 }
 
 impl Verifiers {
-    pub fn new(testnet_contracts: bool, bridgehub_address: Option<String>) -> Self {
+    pub fn new(testnet_contracts: bool, bridgehub_address: String) -> Self {
         Self {
             testnet_contracts,
-            bridgehub_address: bridgehub_address.map(|b| Address::from_hex(b).unwrap()),
+            bridgehub_address: Address::from_hex(bridgehub_address).unwrap(),
             ..Default::default()
         }
+    }
+
+    pub async fn append_addresses(&mut self) -> anyhow::Result<()> {
+        // fixme: unwrap
+        let info = self.network_verifier.get_bridgehub_info(self.bridgehub_address).await.unwrap();
+
+        self.address_verifier.add_address(self.bridgehub_address, "bridgehub_proxy");
+        self.address_verifier.add_address(info.stm_address, "state_transition_manager");
+        self.address_verifier.add_address(info.transparent_proxy_admin, "transparent_proxy_admin");
+        self.address_verifier.add_address(info.shared_bridge, "old_shared_bridge_proxy");
+        self.address_verifier.add_address( info.legacy_bridge, "legacy_erc20_bridge_proxy");
+// protocol_upgrade_handler_transparent_proxy_admin
+        Ok(())
     }
 }
 
