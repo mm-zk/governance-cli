@@ -167,7 +167,6 @@ pub struct DeployedAddresses {
     pub(crate) l1_rollup_da_manager: Address,
     pub(crate) l1_gateway_upgrade: Address,
     pub(crate) l1_governance_upgrade_timer: Address,
-    pub(crate) gateway_upgrade_address: Address,
     pub(crate) bridges: Bridges,
     pub(crate) bridgehub: Bridgehub,
     pub(crate) state_transition: StateTransition,
@@ -805,7 +804,6 @@ impl DeployedAddresses {
         result.expect_create2_params(verifiers, &self.validium_l1_da_validator_addr, vec![], "l1-contracts/ValidiumL1DAValidator");
         result.expect_create2_params(verifiers, &self.bridges.bridged_standard_erc20_impl, vec![], "l1-contracts/BridgedStandardERC20");
         result.expect_create2_params(verifiers, &self.l1_gateway_upgrade, vec![], "l1-contracts/GatewayUpgrade");
-        result.expect_create2_params(verifiers, &self.gateway_upgrade_address, vec![], "l1-contracts/GatewayUpgrade");
 
         result.report_ok("deployed addresses");
         Ok(())

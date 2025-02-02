@@ -80,8 +80,8 @@ impl GovernanceStage1Calls {
 
         let diamond_cut = data.diamondCut;
 
-        if diamond_cut.initAddress != deployed_addresses.gateway_upgrade_address {
-            result.report_error(&format!("Unexpected init address for the diamond cut: {}, expected {}", diamond_cut.initAddress, deployed_addresses.gateway_upgrade_address));
+        if diamond_cut.initAddress != deployed_addresses.l1_gateway_upgrade {
+            result.report_error(&format!("Unexpected init address for the diamond cut: {}, expected {}", diamond_cut.initAddress, deployed_addresses.l1_gateway_upgrade));
         }
 
         verity_facet_cuts(
