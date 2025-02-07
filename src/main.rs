@@ -19,6 +19,9 @@ use elements::{
 const CONTRACTS_COMMIT: &str = "16dedf6d77695ce00f81fce35a3066381b97fca1";
 const ERA_COMMIT: &str = "ee14cb4826dbec00e9e7d909ed9af3994379df46";
 
+// v0.26.0
+pub(crate) const EXPECTED_NEW_PROTOCOL_VERSION: u64 = 26<<32;
+
 #[derive(Debug, Deserialize)]
 struct Config {
     #[allow(dead_code)]

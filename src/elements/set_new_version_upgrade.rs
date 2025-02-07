@@ -1,11 +1,13 @@
 use std::collections::HashSet;
 
 use alloy::{
-    primitives::{FixedBytes, U256},
+    primitives::{Address, FixedBytes, U256},
     sol,
 };
+use chrono::format::Fixed;
+use clap::error;
 
-use crate::utils::address_verifier::FixedAddresses;
+use crate::{utils::address_verifier::FixedAddresses, EXPECTED_NEW_PROTOCOL_VERSION};
 
 use super::{
     post_upgrade_calldata::PostUpgradeCalldata, protocol_version::ProtocolVersion,
@@ -95,6 +97,11 @@ sol! {
 
     }
 
+    #[sol(rpc)]
+    contract BytecodesSupplier {
+        mapping(bytes32 bytecodeHash => uint256 blockNumber) public publishingBlock;
+    }
+
 }
 
 impl upgradeCall {}
@@ -144,71 +151,70 @@ const EXPECTED_BYTECODES: [&str; 41] = [
 ];
 
 impl ProposedUpgrade {
+
     pub async fn verify_transaction(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
+        expected_version: ProtocolVersion,
+        bytecodes_supplier_addr: Address,
     ) -> anyhow::Result<()> {
-        result.print_info("== checking upgrade tx ===");
-
-        let mut errors = 0;
-
         let tx = &self.l2ProtocolUpgradeTx;
         if tx.txType != U256::from(254) {
             result.report_error("Invalid txType");
-            errors += 1;
         }
 
         if tx.from != U256::from(FixedAddresses::ForceDeployer as u64) {
             result.report_error("Invalid from");
-            errors += 1;
         }
         if tx.to != U256::from(FixedAddresses::DeployerSystemContract as u64) {
             result.report_error("Invalid to");
-            errors += 1;
         }
         if tx.gasLimit != U256::from(72_000_000) {
             result.report_error("Invalid gasLimit");
-            errors += 1;
         }
         if tx.gasPerPubdataByteLimit != U256::from(800) {
             result.report_error("Invalid gasPerPubdataByteLimit");
-            errors += 1;
         }
         if tx.maxFeePerGas != U256::from(0) {
             result.report_error("Invalid maxFeePerGas");
-            errors += 1;
         }
         if tx.maxPriorityFeePerGas != U256::from(0) {
             result.report_error("Invalid maxPriorityFeePerGas");
-            errors += 1;
         }
         if tx.paymaster != U256::from(0) {
             result.report_error("Invalid paymaster");
-            errors += 1;
+        }
+        if tx.nonce != U256::from(expected_version.minor) {
+            result.report_error("Minor protocol version");
         }
         if tx.value != U256::from(0) {
             result.report_error("Invalid value");
-            errors += 1;
         }
         if tx.reserved != [U256::from(0); 4] {
             result.report_error("Invalid reserved");
-            errors += 1;
         }
         if tx.data.len() != 0 {
             result.report_error("Invalid data");
-            errors += 1;
         }
+        if tx.signature.len() != 0 {
+            result.report_error("Invalid signature");
+        }
+        
+        // Factory deps are checked later
+
         if tx.paymasterInput.len() != 0 {
             result.report_error("Invalid paymasterInput");
-            errors += 1;
         }
         if tx.reservedDynamic.len() != 0 {
             result.report_error("Invalid reservedDynamic");
-            errors += 1;
         }
 
-        // FIXME: it is not checked that the bytecodes were actually published
+        let bytecodes_supplier = BytecodesSupplier::new(
+            bytecodes_supplier_addr,
+            verifiers.network_verifier.get_l1_provider().unwrap()
+        );
+
         let deps = tx
             .factoryDeps
             .iter()
@@ -218,38 +224,54 @@ impl ProposedUpgrade {
         let mut expected_bytecodes: HashSet<&str> = EXPECTED_BYTECODES.into();
 
         for dep in deps {
-            let file_name = verifiers.bytecode_verifier.bytecode_hash_to_file(&dep);
-            match file_name {
-                Some(file_name) => {
-                    if !expected_bytecodes.contains(&file_name.as_str()) {
-                        result.report_error(&format!(
-                            "Unexpected dependency in factory deps: {}",
-                            file_name
-                        ));
-                        errors += 1;
-                    } else {
-                        expected_bytecodes.remove(&file_name.as_str());
-                    }
-                }
-                None => {
-                    result.report_error(&format!(
-                        "Invalid dependency in factory deps - cannot find file for hash: {:?}",
-                        dep
-                    ));
-                    errors += 1;
-                }
+            let Some(file_name) = verifiers.bytecode_verifier.bytecode_hash_to_file(&dep) else {
+                result.report_error(&format!(
+                    "Invalid dependency in factory deps - cannot find file for hash: {:?}",
+                    dep
+                ));
+                continue;
+            };
+
+            if !expected_bytecodes.contains(&file_name.as_str()) {
+                result.report_error(&format!(
+                    "Unexpected dependency in factory deps: {}",
+                    file_name
+                ));
+                continue;
+            } 
+                
+            expected_bytecodes.remove(&file_name.as_str());
+
+            // We also need to check that the dependency has been published.
+            let publishing_block = bytecodes_supplier.publishingBlock(dep).call().await.unwrap().blockNumber;
+            if publishing_block == U256::ZERO {
+                result.report_error(&format!("Unpublished bytecode for {file_name}"));
             }
+            
         }
         if expected_bytecodes.len() > 0 {
             result.report_error(&format!(
                 "Missing dependencies in factory deps: {:?}",
                 expected_bytecodes
             ));
-            errors += 1;
         }
-        if errors == 0 {
-            result.report_ok("Upgrade transaction & factory deps are correct");
-        }
+
+        Ok(())
+    }
+
+    pub async fn verify(
+        &self,
+        verifiers: &crate::traits::Verifiers,
+        result: &mut crate::traits::VerificationResult,
+        bytecodes_supplier_addr: Address
+    ) -> anyhow::Result<()> {
+        result.print_info("== checking chain upgrade init calldata ===");
+
+        let expected_version = ProtocolVersion::from(U256::from(EXPECTED_NEW_PROTOCOL_VERSION));
+        
+        let error_count_initial = result.errors;
+
+        self.verify_transaction(verifiers, result, expected_version, bytecodes_supplier_addr).await?;
 
         result.expect_bytecode(verifiers, &self.bootloaderHash, "proved_batch.yul");
         result.expect_bytecode(
@@ -267,7 +289,6 @@ impl ProposedUpgrade {
 
         if verifier != "verifier" {
             result.report_error(&format!("Invalid verifier: {}", verifier));
-            errors += 1;
         }
 
         // Verifier params should be zero - as everything is hardcoded within the verifier contract itself.
@@ -276,34 +297,30 @@ impl ProposedUpgrade {
             || self.verifierParams.recursionCircuitsSetVksHash != [0u8; 32]
         {
             result.report_error("Verifier params must be empty.");
-            errors += 1;
         }
 
         if self.l1ContractsUpgradeCalldata.len() > 0 {
             result.report_error("l1ContractsUpgradeCalldata is not empty");
-            errors += 1;
         }
 
         let post_upgrade_calldata = PostUpgradeCalldata::parse(&self.postUpgradeCalldata);
         post_upgrade_calldata.verify(verifiers, result).await?;
 
         let upgrade_timestamp = self.upgradeTimestamp;
-        result.print_info(&format!("Upgrade timestamp: {}", upgrade_timestamp));
         if upgrade_timestamp != U256::default() {
-            result.report_warn("Upgrade timestamp must be zero");
+            result.report_error("Upgrade timestamp must be zero");
+        }
+        
+        let pv = ProtocolVersion::from(self.newProtocolVersion);
+        if pv != expected_version {
+            result.report_error(&format!("Invalid protocol version: {}. Expected: {}", pv.to_string(), expected_version.to_string()));
         }
 
-        let pv = ProtocolVersion::from(self.newProtocolVersion).to_string();
-        pub const EXPECTED_PROTOCOL_VERSION: &str = "v0.26.0";
-        if pv != EXPECTED_PROTOCOL_VERSION {
-            result.report_warn(&format!(
-                "Invalid protocol version: {} - expected {}",
-                pv, EXPECTED_PROTOCOL_VERSION
-            ));
-        }
-
-        if errors > 0 {
-            anyhow::bail!("{} errors", errors)
+        if error_count_initial == result.errors {
+            result.report_ok("Proposed upgrade info is correct");
+        } else {
+            assert!(error_count_initial <= result.errors, "Errors can not be erased");
+            anyhow::bail!("{} erorrs found in the upgrade information", result.errors - error_count_initial);
         }
 
         Ok(())

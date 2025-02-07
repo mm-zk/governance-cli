@@ -145,7 +145,11 @@ impl GovernanceStage1Calls {
 
         upgrade
             ._proposedUpgrade
-            .verify_transaction(verifiers, result)
+            .verify(
+                verifiers, 
+                result,
+                deployed_addresses.l1_bytecodes_supplier_addr
+            )
             .await?;
 
         Ok(())

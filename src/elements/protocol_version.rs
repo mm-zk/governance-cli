@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use alloy::primitives::U256;
 
+#[derive(Eq, PartialEq, Clone, Copy)]
 pub struct ProtocolVersion {
     pub major: u64,
     pub minor: u64,
