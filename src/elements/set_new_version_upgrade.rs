@@ -7,7 +7,7 @@ use alloy::{
 use chrono::format::Fixed;
 use clap::error;
 
-use crate::{utils::address_verifier::FixedAddresses, EXPECTED_NEW_PROTOCOL_VERSION};
+use crate::{get_expected_new_protocol_version, utils::address_verifier::FixedAddresses};
 
 use super::{
     post_upgrade_calldata::PostUpgradeCalldata, protocol_version::ProtocolVersion,
@@ -267,7 +267,7 @@ impl ProposedUpgrade {
     ) -> anyhow::Result<()> {
         result.print_info("== checking chain upgrade init calldata ===");
 
-        let expected_version = ProtocolVersion::from(U256::from(EXPECTED_NEW_PROTOCOL_VERSION));
+        let expected_version = get_expected_new_protocol_version();
         
         let error_count_initial = result.errors;
 

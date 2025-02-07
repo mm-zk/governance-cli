@@ -1,6 +1,5 @@
 use crate::{
-    elements::initialize_data_new_chain::InitializeDataNewChain,
-    traits::{Verifiers, Verify},
+    elements::initialize_data_new_chain::InitializeDataNewChain, get_expected_old_protocol_version, traits::{Verifiers, Verify}
 };
 use alloy::{
     hex,
@@ -25,6 +24,10 @@ sol! {
 
     function upgradeAndCall(address proxy, address implementation, bytes data) {
     }
+    function setAddresses(address _assetRouter, address _l1CtmDeployer, address _messageRoot) {}
+
+    function setL1NativeTokenVault(address _l1NativeTokenVault);
+    function setL1AssetRouter(address _l1AssetRouter);
 
     function setValidatorTimelock(address addr) {
     }
@@ -143,7 +146,6 @@ impl Verify for GovernanceStage2Calls {
                 "state_transition_manager",
                 "setChainCreationParams((address,bytes32,uint64,bytes32,((address,uint8,bool,bytes4[])[],address,bytes),bytes))",
             ),
-
             (
                 "bridgehub_proxy",
                 "setAddresses(address,address,address)",
@@ -212,45 +214,58 @@ impl Verify for GovernanceStage2Calls {
             None,
         );
 
-        let decoded =
+        // Now verifying setChainCreationParams
+
+        {
+            let decoded =
             setChainCreationParamsCall::abi_decode(&self.calls.elems[4].data, true).unwrap();
 
-        decoded
-            ._chainCreationParams
-            .verify(verifiers, result)
-            .await?;
-
-        // FIXME: why not check 5th call?
-
+            decoded
+                ._chainCreationParams
+                .verify(verifiers, result)
+                .await?;
+        }
+        
         {
-            let decoded =
-                singleAddressArgumentCall::abi_decode_raw(&self.calls.elems[6].data[4..], true)
-                    .unwrap();
-
-            result.expect_address(verifiers, &decoded.addr, "native_token_vault");
+            let decoded = 
+                setAddressesCall::abi_decode(&self.calls.elems[5].data, true).unwrap();
+            
+            // FIXME: the name is very confusing
+            result.expect_address(&verifiers, &decoded._assetRouter, "shared_bridge_proxy");
+            result.expect_address(&verifiers, &decoded._l1CtmDeployer, "ctm_deployment_tracker");
+            result.expect_address(&verifiers, &decoded._messageRoot, "l1_message_root");
         }
 
         {
             let decoded =
-                singleAddressArgumentCall::abi_decode_raw(&self.calls.elems[7].data[4..], true)
+                setL1NativeTokenVaultCall::abi_decode(&self.calls.elems[6].data, true)
                     .unwrap();
 
-            result.expect_address(verifiers, &decoded.addr, "shared_bridge_proxy");
+            result.expect_address(verifiers, &decoded._l1NativeTokenVault, "native_token_vault");
         }
 
         {
-            let decoded = setProtocolVersionDeadlineCall::abi_decode_raw(
-                &self.calls.elems[8].data[4..],
+            let decoded =
+                setL1AssetRouterCall::abi_decode(&self.calls.elems[7].data, true)
+                    .unwrap();
+
+            result.expect_address(verifiers, &decoded._l1AssetRouter, "shared_bridge_proxy");
+        }
+
+        {
+            let decoded = setProtocolVersionDeadlineCall::abi_decode(
+                &self.calls.elems[8].data,
                 true,
             )
             .unwrap();
 
             let pv = ProtocolVersion::from(decoded.protocolVersion);
-            const EXPECTED_OLD_PV: &str = "v0.25.0";
-            if pv.to_string() != EXPECTED_OLD_PV {
+            let expected_old = get_expected_old_protocol_version();
+
+            if pv != expected_old {
                 result.report_warn(&format!(
                     "Invalid protocol version: {} - expected {}",
-                    pv, EXPECTED_OLD_PV
+                    pv, expected_old
                 ));
             }
 

@@ -205,6 +205,7 @@ impl DeployedAddresses {
         address_verifier.add_address(self.native_token_vault_addr, "native_token_vault");
         address_verifier.add_address(self.validator_timelock_addr, "validator_timelock");
         address_verifier.add_address(self.bridges.shared_bridge_proxy_addr, "shared_bridge_proxy");
+        address_verifier.add_address(self.bridgehub.message_root_proxy_addr, "l1_message_root");
         address_verifier.add_address(
             self.bridgehub.ctm_deployment_tracker_proxy_addr,
             "ctm_deployment_tracker",

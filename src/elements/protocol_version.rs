@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use alloy::primitives::U256;
 
@@ -7,6 +7,27 @@ pub struct ProtocolVersion {
     pub major: u64,
     pub minor: u64,
     pub patch: u64,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct InvalidProtocolVersionError{}
+
+impl FromStr for ProtocolVersion {
+    type Err = InvalidProtocolVersionError;
+    fn from_str(version: &str) -> Result<Self, InvalidProtocolVersionError> {
+        let items: Vec<_> = version.split(".").collect();
+        if items.len() != 3{
+            return Err(InvalidProtocolVersionError{})
+        }
+
+        let result = Self {
+            major: items[0].parse().map_err(|_| InvalidProtocolVersionError{})?,
+            minor: items[1].parse().map_err(|_| InvalidProtocolVersionError{})?,
+            patch: items[2].parse().map_err(|_| InvalidProtocolVersionError{})?,
+        };
+
+        Ok(result)
+    }
 }
 
 impl From<U256> for ProtocolVersion {

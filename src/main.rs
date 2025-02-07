@@ -13,14 +13,22 @@ mod utils;
 use clap::Parser;
 use elements::{
     call_list::CallList, deployed_addresses::DeployedAddresses,
-    governance_stage1_calls::GovernanceStage1Calls, governance_stage2_calls::GovernanceStage2Calls,
+    governance_stage1_calls::GovernanceStage1Calls, governance_stage2_calls::GovernanceStage2Calls, protocol_version::ProtocolVersion,
 };
 
 const CONTRACTS_COMMIT: &str = "16dedf6d77695ce00f81fce35a3066381b97fca1";
 const ERA_COMMIT: &str = "ee14cb4826dbec00e9e7d909ed9af3994379df46";
 
-// v0.26.0
-pub(crate) const EXPECTED_NEW_PROTOCOL_VERSION: u64 = 26<<32;
+pub(crate) const EXPECTED_NEW_PROTOCOL_VERSION_STR: &'static str = "0.26.0";
+pub(crate) const EXPECTED_OLD_PROTOCOL_VERSION_STR: &'static str = "0.25.0";
+
+pub(crate) fn get_expected_new_protocol_version() -> ProtocolVersion {
+    ProtocolVersion::from_str(EXPECTED_NEW_PROTOCOL_VERSION_STR).unwrap()
+}
+
+pub(crate) fn get_expected_old_protocol_version() -> ProtocolVersion {
+    ProtocolVersion::from_str(EXPECTED_OLD_PROTOCOL_VERSION_STR).unwrap()
+}
 
 #[derive(Debug, Deserialize)]
 struct Config {
@@ -196,7 +204,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .network_verifier
             .add_l1_network_rpc(l1_rpc.clone());
         if verifiers.testnet_contracts {
-            let chain_id = verifiers.network_verifier.get_l1_chain_id().await.unwrap();
+            let chain_id = verifiers.network_verifier.get_l1_chain_id().await;
             if chain_id == 1 {
                 panic!("Testnet contracts are not expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
             }
@@ -273,6 +281,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let protocol_upgrade_handler_proxy_address = Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap();
 
     let mut result = VerificationResult::default();
+
+    verifiers.address_verifier.add_address(protocol_upgrade_handler_proxy_address, "protocol_upgrade_handler_proxy");
+    // verifiers.address_verifier.add_address(address, name);
 
     config.add_to_verifier(&mut verifiers.address_verifier);
     verifiers.address_verifier.add_address(verifiers.network_verifier.get_proxy_admin(protocol_upgrade_handler_proxy_address).await, "protocol_upgrade_handler_transparent_proxy_admin");

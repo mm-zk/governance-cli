@@ -130,7 +130,7 @@ impl PostUpgradeCalldata {
                 ("EcAdd.yul", address_from_short_hex("6"), false),
                 ("EcMul.yul", address_from_short_hex("7"), false),
                 ("EcPairing.yul", address_from_short_hex("8"), false),
-                // bootloader
+                // Note, that we deploy `EmptyContract` into the bootloader address.
                 (
                     "system-contracts/EmptyContract",
                     address_from_short_hex("8001"),
@@ -161,7 +161,7 @@ impl PostUpgradeCalldata {
                     address_from_short_hex("8006"),
                     false,
                 ),
-                // no 8007
+                // We deploy nothing to the 8007 address
                 (
                     "system-contracts/L1Messenger",
                     address_from_short_hex("8008"),
@@ -246,7 +246,7 @@ impl PostUpgradeCalldata {
                     address_from_short_hex("10007"),
                     false,
                 ),
-                // Now we're entereing the upgrade specific territory
+                // The following force deployments are specific for this upgrade.
                 (
                     "l1-contracts/L2SharedBridgeLegacy",
                     compute_expected_address_for_file(
@@ -295,35 +295,9 @@ impl PostUpgradeCalldata {
             result,
         )?;
 
-        let addr = verifiers
-            .address_verifier
-            .name_or_unknown(&self.gateway_upgrade_encoded_input.ctmDeployer);
-        if addr != "ctm_deployment_tracker" {
-            result.report_error(&format!(
-                "ctm_deployment_tracker is not the expected address. Got: {}",
-                addr
-            ));
-        };
-
-        let addr = verifiers
-            .address_verifier
-            .name_or_unknown(&self.gateway_upgrade_encoded_input.wrappedBaseTokenStore);
-        if addr != "l2_wrapped_base_token_store" {
-            result.report_error(&format!(
-                "l2_wrapped_base_token_store is not the expected address. Got: {}",
-                addr
-            ));
-        };
-
-        let addr = verifiers
-            .address_verifier
-            .name_or_unknown(&self.gateway_upgrade_encoded_input.newValidatorTimelock);
-        if addr != "validator_timelock" {
-            result.report_error(&format!(
-                "validator_timelock is not the expected address. Got: {}",
-                addr
-            ));
-        };
+        result.expect_address(verifiers, &self.gateway_upgrade_encoded_input.ctmDeployer, "ctm_deployment_tracker");
+        result.expect_address(verifiers, &self.gateway_upgrade_encoded_input.wrappedBaseTokenStore, "l2_wrapped_base_token_store");
+        result.expect_address(verifiers, &self.gateway_upgrade_encoded_input.newValidatorTimelock,"validator_timelock");
 
         let fixed_force_deployments_data = FixedForceDeploymentsData::abi_decode(
             &self.gateway_upgrade_encoded_input.fixedForceDeploymentsData,

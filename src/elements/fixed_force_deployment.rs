@@ -31,35 +31,30 @@ impl FixedForceDeploymentsData {
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
     ) -> anyhow::Result<()> {
+        let expected_l1_chain_id = verifiers.network_verifier.get_l1_chain_id().await;
+        if U256::from(expected_l1_chain_id) != self.l1ChainId {
+            result.report_error(&format!(
+                "L1 chain id mismatch: expected {}, got {}",
+                expected_l1_chain_id, self.l1ChainId, 
+            ));
+        }
+
         let era_chain_id = verifiers.network_verifier.get_l2_chain_id().await;
         if U256::from(era_chain_id) != self.eraChainId {
             result.report_error(&format!(
                 "Era chain id mismatch: expected {}, got {}",
-                self.eraChainId, era_chain_id
+                era_chain_id, self.eraChainId 
             ));
         }
 
-        match verifiers.network_verifier.get_l1_chain_id().await {
-            Some(l1_chain_id) => {
-                if U256::from(l1_chain_id) != self.l1ChainId {
-                    result.report_error(&format!(
-                        "L1 chain id mismatch: expected {}, got {}",
-                        self.l1ChainId, l1_chain_id
-                    ));
-                }
-            }
-            None => {
-                result.report_warn("L1 chain id not verified");
-            }
-        }
-
         result.expect_address(verifiers, &self.l1AssetRouter, "shared_bridge_proxy");
+        // FIXME: we should not just demand a bytecode, we should demand that it is ZK one.
         result.expect_bytecode(
             verifiers,
             &self.l2TokenProxyBytecodeHash,
             "l1-contracts/BeaconProxy",
         );
-        //result.expect_address(verifiers, &self.aliasedL1Governance, "aliased_governance");
+        result.expect_address(verifiers, &self.aliasedL1Governance, "aliased_governance");
 
         if self.maxNumberOfZKChains != U256::from(100) {
             result.report_error("maxNumberOfZKChains must be 100");
