@@ -1,5 +1,5 @@
 use alloy::{hex, sol, sol_types::SolValue};
-use crate::traits::Verifiers;
+use crate::verifiers::Verifiers;
 use std::collections::VecDeque;
 
 sol! {
@@ -30,7 +30,7 @@ impl CallList {
         &self,
         list_of_calls: &[(&str, &str)],
         verifiers: &Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        result: &mut crate::verifiers::VerificationResult,
     ) -> anyhow::Result<()> {
         let mut elems = VecDeque::from(self.elems.clone());
         let mut errors = 0;

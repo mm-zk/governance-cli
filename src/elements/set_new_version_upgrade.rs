@@ -154,8 +154,8 @@ const EXPECTED_BYTECODES: [&str; 41] = [
 impl ProposedUpgrade {
     pub async fn verify_transaction(
         &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         expected_version: ProtocolVersion,
         bytecodes_supplier_addr: Address,
     ) -> anyhow::Result<()> {
@@ -265,8 +265,8 @@ impl ProposedUpgrade {
 
     pub async fn verify(
         &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bytecodes_supplier_addr: Address,
     ) -> anyhow::Result<()> {
         result.print_info("== checking chain upgrade init calldata ===");

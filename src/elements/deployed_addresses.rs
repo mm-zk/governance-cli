@@ -251,8 +251,8 @@ impl DeployedAddresses {
     async fn verify_ntv(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         let l1_ntv_impl_constructor = L1NativeTokenVault::constructorCall::new((
@@ -283,8 +283,8 @@ impl DeployedAddresses {
     async fn verify_validator_timelock(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         let deployer_addr =
@@ -335,8 +335,8 @@ impl DeployedAddresses {
     async fn verify_wrapped_base_token_store(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         let deployer_addr =
@@ -378,8 +378,8 @@ impl DeployedAddresses {
     async fn verify_per_chain_info(
         &self,
         _config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         let provider = verifiers
@@ -445,8 +445,8 @@ impl DeployedAddresses {
     async fn verify_ctm_deployment_tracker(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         let ctm_deployer_impl_constructor = CTMDeploymentTracker::constructorCall::new((
@@ -482,8 +482,8 @@ impl DeployedAddresses {
     async fn verify_l1_asset_router(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         let era_diamond_proxy = verifiers
@@ -532,8 +532,8 @@ impl DeployedAddresses {
     async fn verify_l1_nullifier(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         let era_diamond_proxy = verifiers
@@ -559,8 +559,8 @@ impl DeployedAddresses {
     async fn verify_l1_erc20_bridge(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         result.expect_create2_params(
@@ -581,8 +581,8 @@ impl DeployedAddresses {
     async fn verify_bridgehub_impl(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         const MAX_NUMBER_OF_CHAINS: usize = 100;
@@ -604,8 +604,8 @@ impl DeployedAddresses {
     async fn verify_chain_type_manager(
         &self,
         _config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         result.expect_create2_params(
@@ -620,8 +620,8 @@ impl DeployedAddresses {
     async fn verify_admin_facet(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         result.expect_create2_params(
@@ -637,8 +637,8 @@ impl DeployedAddresses {
     async fn verify_executor_facet(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         result.expect_create2_params(
@@ -653,8 +653,8 @@ impl DeployedAddresses {
     async fn verify_getters_facet(
         &self,
         _config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         result.expect_create2_params(
@@ -669,8 +669,8 @@ impl DeployedAddresses {
     async fn verify_mailbox_facet(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         result.expect_create2_params(
@@ -686,8 +686,8 @@ impl DeployedAddresses {
     async fn verify_rollup_da_manager(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         result.expect_create2_params(
@@ -722,8 +722,8 @@ impl DeployedAddresses {
     async fn verify_transitionary_owner(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         result.expect_create2_params(
@@ -742,8 +742,8 @@ impl DeployedAddresses {
     async fn verify_bridged_token_beacon(
         &self,
         _config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         result.expect_create2_params(
@@ -759,8 +759,8 @@ impl DeployedAddresses {
     async fn verify_message_root(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         let message_root_impl_constructor =
@@ -783,8 +783,8 @@ impl DeployedAddresses {
     async fn verify_governance_upgrade_timer(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         let initial_delay = if config.era_chain_id == 300 || config.l1_chain_id == 1 {
@@ -814,7 +814,7 @@ impl DeployedAddresses {
     pub async fn get_expected_facet_cuts(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
+        verifiers: &crate::verifiers::Verifiers,
     ) -> anyhow::Result<(FacetCutSet, FacetCutSet)> {
         let bridgehub_addr = verifiers.bridgehub_address;
         let bridgehub_info = verifiers.network_verifier.get_bridgehub_info(bridgehub_addr).await;
@@ -874,8 +874,8 @@ impl DeployedAddresses {
     pub async fn verify(
         &self,
         config: &Config,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
     ) -> anyhow::Result<()> {
         let bridgehub_addr = verifiers.bridgehub_address;
         let bridgehub_info = verifiers.network_verifier.get_bridgehub_info(bridgehub_addr).await;

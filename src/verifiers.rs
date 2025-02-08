@@ -7,14 +7,12 @@ use serde::Deserialize;
 use std::fmt::Display;
 use std::panic::Location;
 
-use crate::{elements::deployed_addresses, utils::{
+use crate::utils::{
     address_verifier::AddressVerifier, bytecode_verifier::BytecodeVerifier, fee_param_verifier::FeeParamVerifier, get_contents_from_github, network_verifier::NetworkVerifier, selector_verifier::SelectorVerifier
-}};
+};
 
 sol! {
-  function transparentProxyConstructor(address impl, address initialAdmin, bytes memory initCalldata) {
-
-  }  
+  function transparentProxyConstructor(address impl, address initialAdmin, bytes memory initCalldata);
 }
 
 #[derive(Default)]
@@ -250,7 +248,7 @@ impl VerificationResult {
 
     pub async fn expect_create2_params_proxy_with_bytecode(
         &mut self,
-        verifiers: &crate::traits::Verifiers,
+        verifiers: &crate::verifiers::Verifiers,
         address: &Address,
         expected_init_params: Vec<u8>,
         expected_initial_admin: Address,
@@ -321,12 +319,4 @@ impl Display for VerificationResult {
             }
         }
     }
-}
-
-pub trait Verify {
-    async fn verify(
-        &self,
-        verifiers: &Verifiers,
-        result: &mut VerificationResult,
-    ) -> anyhow::Result<()>;
 }

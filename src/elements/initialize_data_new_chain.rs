@@ -39,8 +39,8 @@ sol! {
 impl InitializeDataNewChain {
     pub async fn verify(
         &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
     ) -> anyhow::Result<()> {
         result.print_info("== checking initialize data ===");
 

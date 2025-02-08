@@ -3,7 +3,7 @@ use std::io::Read;
 use crate::{
     elements::initialize_data_new_chain::InitializeDataNewChain,
     get_expected_old_protocol_version,
-    traits::{Verifiers, Verify},
+    verifiers::Verifiers,
     utils::facet_cut_set::{self, FacetCutSet},
 };
 use alloy::{
@@ -92,7 +92,7 @@ impl GovernanceStage2Calls {
     pub fn verify_upgrade_call(
         &self,
         verifiers: &Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        result: &mut crate::verifiers::VerificationResult,
         call: &Call,
         proxy_address: &str,
         implementation_address: &str,
@@ -131,8 +131,8 @@ impl GovernanceStage2Calls {
     /// Verifies all the governance stage 2 calls.
     pub async fn verify(
         &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         expected_chain_creation_facets: FacetCutSet,
     ) -> anyhow::Result<()> {
         result.print_info("== Gov stage 2 calls ===");
@@ -261,8 +261,8 @@ impl ChainCreationParams {
     /// Verifies the chain creation parameters.
     pub async fn verify(
         &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         expected_chain_creation_facets: FacetCutSet,
     ) -> anyhow::Result<()> {
         result.print_info("== Chain creation params ==");
@@ -321,8 +321,8 @@ impl ChainCreationParams {
 
 /// Verifies the diamond cut used during chain creation.
 pub async fn verify_chain_creation_diamond_cut(
-    verifiers: &crate::traits::Verifiers,
-    result: &mut crate::traits::VerificationResult,
+    verifiers: &crate::verifiers::Verifiers,
+    result: &mut crate::verifiers::VerificationResult,
     diamond_cut: &DiamondCutData,
     expected_chain_creation_facets: FacetCutSet,
 ) -> anyhow::Result<()> {

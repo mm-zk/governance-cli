@@ -7,7 +7,7 @@ use crate::{
         protocol_version::ProtocolVersion, set_new_version_upgrade::upgradeCall,
         upgrade_deadline::UpgradeDeadline,
     },
-    traits::Verify, utils::facet_cut_set::{self, FacetCutSet},
+    utils::facet_cut_set::{self, FacetCutSet},
 };
 
 use super::{
@@ -57,7 +57,7 @@ pub struct GovernanceStage1Calls {
 
 async fn verity_facet_cuts(
     facet_cuts: &[FacetCut],
-    result: &mut crate::traits::VerificationResult,
+    result: &mut crate::verifiers::VerificationResult,
     expected_upgrade_facets: FacetCutSet
 ) {
     // We ensure two invariants here:
@@ -93,8 +93,8 @@ impl GovernanceStage1Calls {
     pub(crate) async fn verify(
         &self,
         deployed_addresses: &DeployedAddresses,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
         expected_upgrade_facets: FacetCutSet
     ) -> anyhow::Result<()> {
         result.print_info("== Gov stage 1 calls ===");

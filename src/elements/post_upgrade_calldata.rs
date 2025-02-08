@@ -30,8 +30,8 @@ pub struct PostUpgradeCalldata {
 fn verify_force_deployments(
     force_deployments: &[ForceDeployment],
     expected_deployments: &[(&str, Address, bool)],
-    verifiers: &crate::traits::Verifiers,
-    result: &mut crate::traits::VerificationResult,
+    verifiers: &crate::verifiers::Verifiers,
+    result: &mut crate::verifiers::VerificationResult,
 ) -> anyhow::Result<()> {
     if force_deployments.len() != expected_deployments.len() {
         result.report_error(&format!(
@@ -88,7 +88,7 @@ fn address_from_short_hex(hex: &str) -> Address {
 
 /// Computes the expected address for the file by reading its code hash and computing the create2 address.
 pub(crate) fn compute_expected_address_for_file(
-    verifiers: &crate::traits::Verifiers,
+    verifiers: &crate::verifiers::Verifiers,
     file: &str,
 ) -> Address {
     let code = verifiers
@@ -117,8 +117,8 @@ impl PostUpgradeCalldata {
     /// Verifies the inner fields of the calldata.
     pub async fn verify(
         &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
     ) -> anyhow::Result<()> {
         // TODO: verify old timelock
         // TODO: verify gateway deployment position (what is this??)

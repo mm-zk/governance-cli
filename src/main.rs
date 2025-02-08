@@ -4,11 +4,11 @@ use alloy::{
 };
 use serde::Deserialize;
 use std::{fmt::Debug, fs, str::FromStr};
-use traits::{GenesisConfig, VerificationResult, Verifiers, Verify};
+use verifiers::{GenesisConfig, VerificationResult, Verifiers};
 use utils::{address_verifier::AddressVerifier, apply_l2_to_l1_alias};
 
 mod elements;
-mod traits;
+mod verifiers;
 mod utils;
 use clap::Parser;
 use elements::{
@@ -59,7 +59,7 @@ impl Config {
     }
 }
 
-impl Verify for Config {
+impl Config {
     async fn verify(
         &self,
         verifiers: &Verifiers,

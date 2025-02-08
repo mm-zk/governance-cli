@@ -30,8 +30,8 @@ sol! {
 impl FixedForceDeploymentsData {
     pub async fn verify(
         &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
     ) -> anyhow::Result<()> {
         let expected_l1_chain_id = verifiers.network_verifier.get_l1_chain_id().await;
         if U256::from(expected_l1_chain_id) != self.l1ChainId {
