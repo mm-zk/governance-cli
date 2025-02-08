@@ -179,7 +179,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &args
                 .era_commit
         )
-        .await,
+        .await
+        .expect("Failed to init from era-contracts github"),
     );
 
     verifiers

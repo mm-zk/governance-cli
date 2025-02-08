@@ -1,20 +1,28 @@
 use alloy::{
     hex::{self, FromHex},
-    primitives::{Address, Bytes, FixedBytes}, sol, sol_types::SolCall,
+    primitives::{Address, Bytes, FixedBytes},
+    sol,
+    sol_types::SolCall,
 };
 use colored::Colorize;
 use serde::Deserialize;
-use std::fmt::Display;
+use std::fmt::{self, Display};
 use std::panic::Location;
 
 use crate::utils::{
-    address_verifier::AddressVerifier, bytecode_verifier::BytecodeVerifier, fee_param_verifier::FeeParamVerifier, get_contents_from_github, network_verifier::NetworkVerifier, selector_verifier::SelectorVerifier
+    address_verifier::AddressVerifier,
+    bytecode_verifier::BytecodeVerifier,
+    fee_param_verifier::FeeParamVerifier,
+    get_contents_from_github,
+    network_verifier::NetworkVerifier,
+    selector_verifier::SelectorVerifier,
 };
 
 sol! {
-  function transparentProxyConstructor(address impl, address initialAdmin, bytes memory initCalldata);
+    function transparentProxyConstructor(address impl, address initialAdmin, bytes memory initCalldata);
 }
 
+/// Holds various verifiers and configuration parameters.
 #[derive(Default)]
 pub struct Verifiers {
     pub testnet_contracts: bool,
@@ -28,22 +36,30 @@ pub struct Verifiers {
 }
 
 impl Verifiers {
-    pub fn new(testnet_contracts: bool, bridgehub_address: String) -> Self {
+    /// Creates a new `Verifiers` instance.
+    pub fn new(
+        testnet_contracts: bool,
+        bridgehub_address: impl AsRef<str>,
+    ) -> Self {
         Self {
             testnet_contracts,
-            bridgehub_address: Address::from_hex(bridgehub_address).unwrap(),
+            bridgehub_address: Address::from_hex(bridgehub_address.as_ref()).expect("Bridgehub address"),
             ..Default::default()
         }
     }
 
+    /// Fetches extra addresses from the network and appends them to the internal verifier.
     pub async fn append_addresses(&mut self) -> anyhow::Result<()> {
         let info = self.network_verifier.get_bridgehub_info(self.bridgehub_address).await;
 
         self.address_verifier.add_address(self.bridgehub_address, "bridgehub_proxy");
         self.address_verifier.add_address(info.stm_address, "state_transition_manager");
-        self.address_verifier.add_address(info.transparent_proxy_admin, "transparent_proxy_admin");
-        self.address_verifier.add_address(info.shared_bridge, "old_shared_bridge_proxy");
-        self.address_verifier.add_address( info.legacy_bridge, "legacy_erc20_bridge_proxy");
+        self.address_verifier
+            .add_address(info.transparent_proxy_admin, "transparent_proxy_admin");
+        self.address_verifier
+            .add_address(info.shared_bridge, "old_shared_bridge_proxy");
+        self.address_verifier
+            .add_address(info.legacy_bridge, "legacy_erc20_bridge_proxy");
         Ok(())
     }
 }
@@ -56,7 +72,8 @@ pub struct GenesisConfig {
 }
 
 impl GenesisConfig {
-    pub async fn init_from_github(commit: &str) -> Self {
+    /// Initializes the genesis configuration from a file on GitHub.
+    pub async fn init_from_github(commit: &str) -> anyhow::Result<Self> {
         println!("init from github {}", commit);
         let data = get_contents_from_github(
             commit,
@@ -64,8 +81,8 @@ impl GenesisConfig {
             "etc/env/file_based/genesis.yaml",
         )
         .await;
-
-        serde_yaml::from_str(&data).unwrap()
+        serde_yaml::from_str(&data)
+            .map_err(|e| anyhow::anyhow!("Failed to parse genesis.yaml: {}", e))
     }
 }
 
@@ -80,6 +97,7 @@ impl VerificationResult {
     pub fn print_info(&self, info: &str) {
         println!("{}", info);
     }
+
     pub fn report_ok(&self, info: &str) {
         println!("{} {}", "[OK]: ".green(), info);
     }
@@ -88,6 +106,7 @@ impl VerificationResult {
         self.warnings += 1;
         println!("{} {}", "[WARN]:".yellow(), warn);
     }
+
     pub fn report_error(&mut self, error: &str) {
         self.errors += 1;
         println!("{} {}", "[ERROR]:".red(), error);
@@ -100,12 +119,12 @@ impl VerificationResult {
         address: &Address,
         expected: &str,
     ) -> bool {
-        let address = verifiers.address_verifier.name_or_unknown(address);
-        if address != expected {
+        let actual = verifiers.address_verifier.name_or_unknown(address);
+        if actual != expected {
             self.report_error(&format!(
                 "Expected address {}, got {} at {}",
                 expected,
-                address,
+                actual,
                 Location::caller()
             ));
             false
@@ -121,19 +140,17 @@ impl VerificationResult {
         bytecode_hash: &FixedBytes<32>,
         expected: &str,
     ) {
-        match verifiers
-            .bytecode_verifier
-            .zk_bytecode_hash_to_file(bytecode_hash)
-        {
+        match verifiers.bytecode_verifier.zk_bytecode_hash_to_file(bytecode_hash) {
+            Some(file_name) if file_name == expected => {
+                // All good.
+            }
             Some(file_name) => {
-                if file_name != expected {
-                    self.report_error(&format!(
-                        "Expected bytecode {}, got {} at {}",
-                        expected,
-                        file_name,
-                        Location::caller()
-                    ));
-                }
+                self.report_error(&format!(
+                    "Expected bytecode {}, got {} at {}",
+                    expected,
+                    file_name,
+                    Location::caller()
+                ));
             }
             None => {
                 self.report_warn(&format!(
@@ -146,9 +163,7 @@ impl VerificationResult {
         }
     }
 
-    // Verifies *deployed* bytecode of a contract.
-    // This function should be generally avoided in favor of the `expect_create2_params` function
-    // as the latter would also ensure that the constructor logic is correct.
+    /// Verifies the deployed bytecode of a contract.
     pub async fn expect_deployed_bytecode(
         &mut self,
         verifiers: &Verifiers,
@@ -156,57 +171,64 @@ impl VerificationResult {
         expected_file: &str,
     ) {
         let deployed_bytecode = verifiers.network_verifier.get_bytecode_hash_at(address).await;
+        let deployed_file = verifiers
+            .bytecode_verifier
+            .evm_deployed_bytecode_hash_to_file(&deployed_bytecode);
 
-        let deployed_file = verifiers.bytecode_verifier.evm_deployed_bytecode_hash_to_file(&deployed_bytecode);
-        
-        let Some(deployed_file) = deployed_file else {
+        if let Some(deployed_file) = deployed_file {
+            if deployed_file != expected_file {
+                self.report_error(&format!(
+                    "Bytecode from wrong file: Expected {} got {} at {}",
+                    expected_file,
+                    deployed_file,
+                    Location::caller()
+                ));
+                return;
+            }
+            self.report_ok(&format!("{} at {}", expected_file, address));
+        } else {
             self.report_error(&format!(
                 "Bytecode at address {} empty: Expected {} at {}",
                 address,
                 expected_file,
                 Location::caller()
             ));
-            return;
-        };
-
-        if deployed_file != expected_file {
-            self.report_error(&format!(
-                "Bytecode from wrong file: Expected {} got {} at {}",
-                expected_file,
-                deployed_file,
-                Location::caller()
-            ));
-
-            return;
         }
-
-        self.report_ok(&format!(
-            "{} at {}",
-            expected_file, address
-        ));
     }
 
     pub fn expect_create2_params(
         &mut self,
         verifiers: &Verifiers,
         address: &Address,
-        expected_constructor_params: Vec<u8>,
+        expected_constructor_params: impl AsRef<[u8]>,
         expected_file: &str,
     ) {
-        self.expect_create2_params_internal(verifiers, address, expected_constructor_params, expected_file, true);
+        self.expect_create2_params_internal(
+            verifiers,
+            address,
+            expected_constructor_params.as_ref(),
+            expected_file,
+            true,
+        );
     }
 
     pub fn expect_create2_params_internal(
         &mut self,
         verifiers: &Verifiers,
         address: &Address,
-        expected_constructor_params: Vec<u8>,
+        expected_constructor_params: &[u8],
         expected_file: &str,
         report_ok: bool,
     ) -> bool {
-        let Some(deployed_file)= verifiers.network_verifier.create2_known_bytecodes.get(address) else {
-            self.report_error(&format!("Address {:#?} {} is not present in the create2 deployments", address, expected_file));
-            return false; 
+        let deployed_file = match verifiers.network_verifier.create2_known_bytecodes.get(address) {
+            Some(file) => file,
+            None => {
+                self.report_error(&format!(
+                    "Address {:#?} {} is not present in the create2 deployments",
+                    address, expected_file
+                ));
+                return false;
+            }
         };
 
         if deployed_file != expected_file {
@@ -216,74 +238,74 @@ impl VerificationResult {
                 deployed_file,
                 Location::caller()
             ));
-
             return false;
         }
 
-        // Unwrap is safe since depployed file/constructor params are added at the same time
-        // todo: merge the structs.
-        let constructor_params = verifiers.network_verifier.create2_constructor_params.get(address).unwrap();
+        // Safe unwrap because deployed file and constructor params are added at the same time.
+        let constructor_params = verifiers
+            .network_verifier
+            .create2_constructor_params
+            .get(address)
+            .expect("Constructor params must exist if create2 deployment exists");
 
-        if *constructor_params != expected_constructor_params {
+        if constructor_params.as_slice() != expected_constructor_params {
             self.report_error(&format!(
                 "Invalid constructor params for address {} ({}): Expected {} got {} at {}",
                 address,
                 expected_file,
-                hex::encode(&expected_constructor_params),
+                hex::encode(expected_constructor_params),
                 hex::encode(constructor_params),
                 Location::caller()
             ));
-
             return false;
-        }   
+        }
 
         if report_ok {
-            self.report_ok(&format!(
-                "{} at {}",
-                expected_file, address
-            ));
+            self.report_ok(&format!("{} at {}", expected_file, address));
         }
-        true 
+        true
     }
 
+    /// Verifies create2 parameters for a proxy contract that uses a separate implementation.
     pub async fn expect_create2_params_proxy_with_bytecode(
         &mut self,
-        verifiers: &crate::verifiers::Verifiers,
+        verifiers: &Verifiers,
         address: &Address,
-        expected_init_params: Vec<u8>,
+        expected_init_params: impl AsRef<[u8]>,
         expected_initial_admin: Address,
-        expected_impl_constructor_params: Vec<u8>,
+        expected_impl_constructor_params: impl AsRef<[u8]>,
         expected_file: &str,
     ) {
         let transparent_proxy_key = FixedBytes::from_hex(
             "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
         )
-        .unwrap();
-        let implementation_address = verifiers
+        .expect("Invalid transparent proxy key hex literal");
+
+        let storage = verifiers
             .network_verifier
             .storage_at(address, &transparent_proxy_key)
             .await;
+        // Skip the first 12 bytes to extract the address.
+        let implementation_address = Address::from_slice(&storage[12..]);
 
-        let implementation_address = Address::from_slice(&implementation_address.as_slice()[12..]);
-
-        
-        let call = transparentProxyConstructorCall::new((implementation_address, expected_initial_admin,  Bytes::copy_from_slice(&expected_init_params)));
-        let mut constructor_params = vec![];
+        let call = transparentProxyConstructorCall::new((
+            implementation_address,
+            expected_initial_admin,
+            Bytes::copy_from_slice(expected_init_params.as_ref()),
+        ));
+        let mut constructor_params = Vec::new();
         call.abi_encode_raw(&mut constructor_params);
-
-        println!("EXPECTED PARAMS = {}", hex::encode(&constructor_params));
 
         let is_proxy = self.expect_create2_params_internal(
             verifiers,
             address,
-            constructor_params,
+            &constructor_params,
             "l1-contracts/TransparentUpgradeableProxy",
             false,
         );
 
         if !is_proxy {
-            // The error handling has been already done in `expect_deployed_bytecode_internal`, we
-            // don't have anything else to do here.
+            // Error has already been reported.
             return;
         }
 
@@ -297,26 +319,26 @@ impl VerificationResult {
 }
 
 impl Display for VerificationResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.errors > 0 {
-            let res = "ERROR".red();
             write!(
                 f,
                 "{} errors: {}, warnings: {} - result: {}",
-                res, self.errors, self.warnings, self.result
+                "ERROR".red(),
+                self.errors,
+                self.warnings,
+                self.result
+            )
+        } else if self.warnings > 0 {
+            write!(
+                f,
+                "{} warnings: {} - result: {}",
+                "WARN".yellow(),
+                self.warnings,
+                self.result
             )
         } else {
-            if self.warnings == 0 {
-                let res = "OK".green();
-                write!(f, "{} - result: {}", res, self.result)
-            } else {
-                let res = "WARN".yellow();
-                write!(
-                    f,
-                    "{} warnings: {} - result: {}",
-                    res, self.warnings, self.result
-                )
-            }
+            write!(f, "{} - result: {}", "OK".green(), self.result)
         }
     }
 }
