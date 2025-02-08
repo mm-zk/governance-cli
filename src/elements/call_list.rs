@@ -94,13 +94,9 @@ fn expect_simple_call(
     let actual_selector = hex::encode(&call.data[0..4]);
     if actual_selector != method_selector {
         return Err(format!(
-            "Expected call to: {} not found - instead the call selector was {} ({}).",
+            "Expected call to: {} not found - instead the call selector was {}.",
             method_name,
-            actual_selector,
-            verifiers
-                .selector_verifier
-                .to_method_name(actual_selector.clone())
-                .unwrap_or_default()
+            actual_selector
         ));
     }
 

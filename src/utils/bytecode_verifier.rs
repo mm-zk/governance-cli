@@ -100,6 +100,11 @@ impl BytecodeVerifier {
         self.zk_bytecode_file_by_hash.get(bytecode_hash)
     }
 
+    /// Returns the zk bytecode hash that corresponds to the file
+    pub fn file_to_zk_bytecode_hash(&self, file: &str) -> Option<&FixedBytes<32>> {
+        self.bytecode_file_to_zkhash.get(file)
+    }
+
     /// Inserts an entry for the given deployed bytecode hash and file name.
     pub fn insert_evm_deployed_bytecode_hash(&mut self, bytecode_hash: FixedBytes<32>, file: String) {
         self.deployed_bytecode_file_by_hash.insert(bytecode_hash, file);

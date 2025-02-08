@@ -17,14 +17,9 @@ sol! {
     contract Bridgehub {
         address public sharedBridge;
         address public admin;
+        address public owner;
         mapping(uint256 _chainId => address) public stateTransitionManager;
-        function owner() external view returns (address) {
-
-        }
-
-        function getHyperchain(uint256 _chainId) external view returns (address chainAddress) {
-
-        }
+        function getHyperchain(uint256 _chainId) external view returns (address chainAddress);
     }
 
     #[sol(rpc)]
@@ -38,9 +33,7 @@ sol! {
         function getHyperchain(uint256 _chainId) public view returns (address);
     }
 
-    function create2AndTransferParams(bytes memory bytecode, bytes32 salt, address owner) {
-
-    }
+    function create2AndTransferParams(bytes memory bytecode, bytes32 salt, address owner);
 }
 
 const EIP1967_PROXY_ADMIN_SLOT: &str = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
@@ -95,19 +88,19 @@ impl NetworkVerifier {
         chain_id
     }
 
-    pub async fn get_bytecode_hash_at(&self, address: &Address) -> Option<FixedBytes<32>> {
+    pub async fn get_bytecode_hash_at(&self, address: &Address) -> FixedBytes<32> {
         let provider = ProviderBuilder::new().on_http(self.l1_rpc.parse().unwrap());
         let code = provider.get_code_at(address.clone()).await.unwrap();
         if code.len() == 0 {
-            // if connected and address has no bytecode - should return 0s.
-            Some(FixedBytes::ZERO)
+            // If address has no bytecode - we return formal 0s.
+            FixedBytes::ZERO
         } else {
-            Some(keccak256(&code))
+            keccak256(&code)
         }
     }
 
     pub async fn get_chain_diamond_proxy(&self, stm_addr: Address, era_chain_id: u64) -> Address {
-        let provider = self.get_l1_provider().unwrap();
+        let provider = self.get_l1_provider();
 
         let ctm = ChainTypeManager::new(
             stm_addr,
@@ -122,7 +115,7 @@ impl NetworkVerifier {
         &self,
         address: &Address,
         key: &FixedBytes<32>,
-    ) -> Option<FixedBytes<32>> {
+    ) -> FixedBytes<32> {
         let provider = ProviderBuilder::new().on_http(self.l1_rpc.parse().unwrap());
 
         let storage = provider
@@ -130,10 +123,10 @@ impl NetworkVerifier {
             .await
             .unwrap();
 
-        Some(FixedBytes::from_slice(&storage.to_be_bytes_vec()))
+        FixedBytes::from_slice(&storage.to_be_bytes_vec())
     }
 
-    pub async fn get_storage_at(&self, address: &Address, key: u8) -> Option<FixedBytes<32>> {
+    pub async fn get_storage_at(&self, address: &Address, key: u8) -> FixedBytes<32> {
         let provider = ProviderBuilder::new().on_http(self.l1_rpc.parse().unwrap());
 
         let storage = provider
@@ -141,27 +134,15 @@ impl NetworkVerifier {
             .await
             .unwrap();
 
-        Some(FixedBytes::from_slice(&storage.to_be_bytes_vec()))
+        FixedBytes::from_slice(&storage.to_be_bytes_vec())
     }
 
-    fn compute_hash_with_arguments(
-        &self,
-        input: &Bytes,
-        num_arguments: usize,
-    ) -> Option<FixedBytes<32>> {
-        if input.len() < (num_arguments + 2) * 32 {
-            None
-        } else {
-            let after_32_bytes = &input[32..input.len() - 32 * num_arguments];
-            Some(keccak256(after_32_bytes))
-        }
-    }
-    pub fn get_l1_provider(&self) -> Option<RootProvider<Http<Client>>> {
-        Some(ProviderBuilder::new().on_http(self.l1_rpc.parse().unwrap()))
+    pub fn get_l1_provider(&self) -> RootProvider<Http<Client>> {
+        ProviderBuilder::new().on_http(self.l1_rpc.parse().unwrap())
     }
 
     pub async fn get_proxy_admin(&self, addr: Address) -> Address {
-        let addr_as_bytes = self.storage_at(&addr, &FixedBytes::<32>::from_hex(EIP1967_PROXY_ADMIN_SLOT).unwrap()).await.unwrap();
+        let addr_as_bytes = self.storage_at(&addr, &FixedBytes::<32>::from_hex(EIP1967_PROXY_ADMIN_SLOT).unwrap()).await;
         Address::from_slice(&addr_as_bytes[12..])
     }
 

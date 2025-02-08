@@ -209,8 +209,7 @@ impl ProposedUpgrade {
 
         let l1_provider = verifiers
             .network_verifier
-            .get_l1_provider()
-            .ok_or_else(|| anyhow::anyhow!("L1 provider is not available"))?;
+            .get_l1_provider();
         let bytecodes_supplier = BytecodesSupplier::new(bytecodes_supplier_addr, l1_provider);
 
         let deps: Vec<FixedBytes<32>> = tx

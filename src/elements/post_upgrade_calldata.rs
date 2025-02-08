@@ -93,8 +93,7 @@ pub(crate) fn compute_expected_address_for_file(
 ) -> Address {
     let code = verifiers
         .bytecode_verifier
-        .bytecode_file_to_zkhash
-        .get(file)
+        .file_to_zk_bytecode_hash(file)
         .unwrap_or_else(|| panic!("Bytecode not found for file: {}", file));
     compute_create2_address_zk(
         // Create2Factory address

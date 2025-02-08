@@ -303,8 +303,7 @@ impl DeployedAddresses {
 
         let provider = verifiers
             .network_verifier
-            .get_l1_provider()
-            .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?;
+            .get_l1_provider();
         let validator_timelock = ValidatorTimelock::new(self.validator_timelock_addr, provider);
         let current_owner = validator_timelock.owner().call().await?.owner;
         ensure!(
@@ -356,8 +355,7 @@ impl DeployedAddresses {
 
         let provider = verifiers
             .network_verifier
-            .get_l1_provider()
-            .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?;
+            .get_l1_provider();
         let l2_wrapped_base_token_store =
             L2WrappedBaseTokenStore::new(self.l2_wrapped_base_token_store_addr, provider);
         let admin_response = l2_wrapped_base_token_store.admin().call().await?;
@@ -386,8 +384,7 @@ impl DeployedAddresses {
     ) -> Result<()> {
         let provider = verifiers
             .network_verifier
-            .get_l1_provider()
-            .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?;
+            .get_l1_provider();
         let l2_wrapped_base_token_store =
             L2WrappedBaseTokenStore::new(self.l2_wrapped_base_token_store_addr, provider);
         let l1_legacy_shared_bridge = L1SharedBridgeLegacy::new(
@@ -395,14 +392,12 @@ impl DeployedAddresses {
             verifiers
                 .network_verifier
                 .get_l1_provider()
-                .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?,
         );
         let stm = StateTransitionManagerLegacy::new(
             bridgehub_info.stm_address,
             verifiers
                 .network_verifier
                 .get_l1_provider()
-                .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?,
         );
         let all_zkchains = stm.getAllHyperchainChainIDs().call().await?._0;
 
@@ -430,7 +425,6 @@ impl DeployedAddresses {
                 verifiers
                     .network_verifier
                     .get_l1_provider()
-                    .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?,
             );
             let protocol_version = getters.getProtocolVersion().call().await?._0;
             if protocol_version != Self::expected_previous_protocol_version() {
@@ -478,8 +472,7 @@ impl DeployedAddresses {
 
         let provider = verifiers
             .network_verifier
-            .get_l1_provider()
-            .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?;
+            .get_l1_provider();
         let ctm_dt = CTMDeploymentTracker::new(self.bridgehub.ctm_deployment_tracker_proxy_addr, provider);
         let owner = ctm_dt.owner().call().await?.owner;
         ensure!(owner == self.l1_transitionary_owner, "CTMDeploymentTracker owner mismatch");
@@ -523,8 +516,7 @@ impl DeployedAddresses {
 
         let provider = verifiers
             .network_verifier
-            .get_l1_provider()
-            .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?;
+            .get_l1_provider();
         let l1_asset_router = L1AssetRouter::new(self.bridges.shared_bridge_proxy_addr, provider);
         let current_owner = l1_asset_router.owner().call().await?.owner;
         ensure!(current_owner == self.l1_transitionary_owner, "L1AssetRouter owner mismatch");
@@ -707,8 +699,7 @@ impl DeployedAddresses {
 
         let provider = verifiers
             .network_verifier
-            .get_l1_provider()
-            .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?;
+            .get_l1_provider();
         let rollup_da_manager = RollupDAManager::new(self.l1_rollup_da_manager, provider);
         let expected_validator =
             Address::from_str(&config.contracts_config.expected_rollup_l2_da_validator)
@@ -832,7 +823,6 @@ impl DeployedAddresses {
             verifiers
                 .network_verifier
                 .get_l1_provider()
-                .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?
         );
         let era_address = stm.getHyperchain(U256::from(config.era_chain_id)).call().await?.chainAddress;
 
@@ -842,7 +832,6 @@ impl DeployedAddresses {
             verifiers
                 .network_verifier
                 .get_l1_provider()
-                .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?
         );
         let current_facets = getters_facet.facets().call().await?.result;
         for f in current_facets {
@@ -855,8 +844,7 @@ impl DeployedAddresses {
         let mut facets_to_add = FacetCutSet::new();
         let l1_provider = verifiers
             .network_verifier
-            .get_l1_provider()
-            .ok_or_else(|| anyhow::anyhow!("No L1 provider available"))?;
+            .get_l1_provider();
         for facet in &EXPECTED_FACETS {
             let address = *verifiers
                 .address_verifier

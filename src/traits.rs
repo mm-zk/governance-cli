@@ -159,7 +159,7 @@ impl VerificationResult {
     ) {
         let deployed_bytecode = verifiers.network_verifier.get_bytecode_hash_at(address).await;
 
-        let deployed_file = deployed_bytecode.and_then(|x| verifiers.bytecode_verifier.evm_deployed_bytecode_hash_to_file(&x));
+        let deployed_file = verifiers.bytecode_verifier.evm_deployed_bytecode_hash_to_file(&deployed_bytecode);
         
         let Some(deployed_file) = deployed_file else {
             self.report_error(&format!(
@@ -265,11 +265,6 @@ impl VerificationResult {
             .network_verifier
             .storage_at(address, &transparent_proxy_key)
             .await;
-
-        let Some(implementation_address) = implementation_address else {
-            self.report_error(&format!("Proxy at address {} contains no implementation", address));
-            return;
-        };
 
         let implementation_address = Address::from_slice(&implementation_address.as_slice()[12..]);
 

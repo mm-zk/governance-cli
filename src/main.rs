@@ -108,7 +108,7 @@ struct ContractsConfig {
     priority_tx_max_gas_limit: u32,
 }
 
-pub fn address_eq(address: &Address, addr_string: &String) -> bool {
+pub fn address_eq(address: &Address, addr_string: &str) -> bool {
     address.encode_hex()
         == addr_string
             .strip_prefix("0x")

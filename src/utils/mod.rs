@@ -2,7 +2,7 @@ use std::{
     fs::{self, File}, io::{Read, Write}, ops::Add, path::Path
 };
 
-use alloy::{hex::FromHex, primitives::{keccak256, Address, Bytes, FixedBytes, U160, U256}};
+use alloy::{primitives::{keccak256, Address, Bytes, FixedBytes, U160, U256}};
 
 pub mod address_verifier;
 pub mod bytecode_verifier;
@@ -96,16 +96,6 @@ pub fn apply_l2_to_l1_alias(addr: Address) -> Address {
     let addr_as_u256 = U160::from_be_bytes(addr.0.0);
 
     let result = offset + addr_as_u256;
-
-    Address(FixedBytes::<20>(result.to_be_bytes()))
-}
-
-pub fn unapply_l2_to_l1_alias(addr: Address) -> Address {
-    let offset = U160::from_str_radix("1111000000000000000000000000000000001111", 16).unwrap();
-
-    let addr_as_u256 = U160::from_be_bytes(addr.0.0);
-
-    let result = addr_as_u256 - offset;
 
     Address(FixedBytes::<20>(result.to_be_bytes()))
 }
