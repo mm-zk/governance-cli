@@ -48,10 +48,8 @@ pub struct BridgehubInfo {
     pub bridgehub_addr: Address
 }
 
-#[derive(Default)]
 pub struct NetworkVerifier {
     pub l1_rpc: String,
-    pub l2_rpc: Option<String>,
     pub l2_chain_id: u64,
 
     // todo: maybe merge into one struct.
@@ -60,25 +58,17 @@ pub struct NetworkVerifier {
 }
 
 impl NetworkVerifier {
-    pub fn add_l1_network_rpc(&mut self, network_rpc: String) {
-        self.l1_rpc = network_rpc;
-    }
-    pub fn add_l2_network_rpc(&mut self, network_rpc: String) {
-        self.l2_rpc = Some(network_rpc);
-    }
-
-    pub fn add_l2_chain_id(&mut self, l2_chain_id: u64) {
-        self.l2_chain_id = l2_chain_id
-    }
-
-    pub async fn get_l2_chain_id(&self) -> u64 {
-        if let Some(network) = self.l2_rpc.as_ref() {
-            let provider = ProviderBuilder::new().on_http(network.parse().unwrap());
-            let chain_id = provider.get_chain_id().await.unwrap();
-            chain_id
-        } else {
-            self.l2_chain_id
+    pub fn new(l1_rpc: String, l2_chain_id: u64) -> Self {
+        Self {
+            l1_rpc,
+            l2_chain_id,
+            create2_constructor_params: Default::default(),
+            create2_known_bytecodes: Default::default()
         }
+    }
+
+    pub async fn get_era_chain_id(&self) -> u64 {
+        self.l2_chain_id
     }
 
     pub async fn get_l1_chain_id(&self) -> u64 {
@@ -154,11 +144,11 @@ impl NetworkVerifier {
 
         let shared_bridge = L1SharedBridge::new(shared_bridge_address, provider.clone());
 
-        let l2_chain_id = self.get_l2_chain_id().await;
+        let era_chain_id = self.get_era_chain_id().await;
 
         let stm_address = 
                 bridgehub
-                    .stateTransitionManager(l2_chain_id.try_into().unwrap())
+                    .stateTransitionManager(era_chain_id.try_into().unwrap())
                     .call()
                     .await
                     .unwrap()

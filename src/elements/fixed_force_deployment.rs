@@ -41,7 +41,7 @@ impl FixedForceDeploymentsData {
             ));
         }
 
-        let era_chain_id = verifiers.network_verifier.get_l2_chain_id().await;
+        let era_chain_id = verifiers.network_verifier.get_era_chain_id().await;
         if U256::from(era_chain_id) != self.eraChainId {
             result.report_error(&format!(
                 "Era chain id mismatch: expected {}, got {}",

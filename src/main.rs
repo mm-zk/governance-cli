@@ -15,8 +15,8 @@ use elements::{
     call_list::CallList, deployed_addresses::DeployedAddresses, governance_stage1_calls::GovernanceStage1Calls, governance_stage2_calls::GovernanceStage2Calls, post_upgrade_calldata::compute_expected_address_for_file, protocol_version::ProtocolVersion
 };
 
-const CONTRACTS_COMMIT: &str = "16dedf6d77695ce00f81fce35a3066381b97fca1";
-const ERA_COMMIT: &str = "ee14cb4826dbec00e9e7d909ed9af3994379df46";
+const DEFAULT_CONTRACTS_COMMIT: &str = "6badcb8a9b6114c6dd10d3b172a96812250604b0";
+const DEFAULT_ERA_COMMIT: &str = "99c3905a9e92416e76d37b0858da7f6c7e123e0b";
 
 pub(crate) const EXPECTED_NEW_PROTOCOL_VERSION_STR: &'static str = "0.26.0";
 pub(crate) const EXPECTED_OLD_PROTOCOL_VERSION_STR: &'static str = "0.25.0";
@@ -31,7 +31,11 @@ pub(crate) fn get_expected_old_protocol_version() -> ProtocolVersion {
 }
 
 #[derive(Debug, Deserialize)]
-struct Config {
+struct UpgradeOutput {
+    // FIXME: maybe we can read `address`/`bytes` rightaway?
+    // FIXME: maybe remove dead code?
+    // FIXME: why do we even have dead code? Maybe we should verify every field?
+
     #[allow(dead_code)]
     chain_upgrade_diamond_cut: String,
     pub(crate) era_chain_id: u64,
@@ -53,13 +57,13 @@ struct Config {
     transactions: Vec<String>,
 }
 
-impl Config {
+impl UpgradeOutput {
     pub fn add_to_verifier(&self, address_verifier: &mut AddressVerifier) {
         self.deployed_addresses.add_to_verifier(address_verifier);
     }
 }
 
-impl Config {
+impl UpgradeOutput {
     async fn verify(
         &self,
         verifiers: &Verifiers,
@@ -67,7 +71,7 @@ impl Config {
     ) -> anyhow::Result<()> {
         result.print_info("== Config verification ==");
 
-        let provider_chain_id = verifiers.network_verifier.get_l2_chain_id().await;
+        let provider_chain_id = verifiers.network_verifier.get_era_chain_id().await;
         if provider_chain_id == self.era_chain_id {
             result.report_ok("Chain id");
         } else {
@@ -123,29 +127,26 @@ struct Args {
     ecosystem_yaml: String,
 
     // Commit from zksync-era repository (used for genesis verification)
-    #[clap(long, default_value = ERA_COMMIT)]
+    #[clap(long, default_value = DEFAULT_ERA_COMMIT)]
     era_commit: String,
 
     // Commit from era-contracts - used for bytecode verification
-    #[clap(long, default_value = CONTRACTS_COMMIT)]
+    #[clap(long, default_value = DEFAULT_CONTRACTS_COMMIT)]
     contracts_commit: String,
 
     // L1 address
     #[clap(long)]
-    l1_rpc: Option<String>,
-
-    // L2 address
-    #[clap(long)]
-    l2_rpc: Option<String>,
+    l1_rpc: String,
 
     // If L2 RPC is not available, you can provide l2 chain id instead.
     #[clap(long)]
-    l2_chain_id: Option<u64>,
+    era_chain_id: u64,
 
     // If set - then will expect testnet contracts to be deployed (like TestnetVerifier).
     #[clap(long)]
     testnet_contracts: bool,
 
+    // fixme: can it be an address rightaway?
     #[clap(long)]
     bridgehub_address: String,
 
@@ -161,63 +162,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let yaml_content = fs::read_to_string(args.ecosystem_yaml)?;
 
     // Parse the YAML content
-    let config: Config = serde_yaml::from_str(&yaml_content)?;
+    let config: UpgradeOutput = serde_yaml::from_str(&yaml_content)?;
 
-    let mut verifiers = Verifiers::new(args.testnet_contracts, args.bridgehub_address.clone());
+    // fixme: idiomatically all initialization should happen in `new` function, not in `main`
+    let mut verifiers = Verifiers::new(
+        args.testnet_contracts, 
+        args.bridgehub_address.clone(),
+        &args.era_commit,
+        &args.contracts_commit,
+        args.l1_rpc,
+        args.era_chain_id
+    ).await;
 
-    verifiers
-        .bytecode_verifier
-        .init_from_github(
-            &args
-                .contracts_commit
-                .clone()
-        )
-        .await;
-
-    verifiers.genesis_config = Some(
-        GenesisConfig::init_from_github(
-            &args
-                .era_commit
-        )
-        .await
-        .expect("Failed to init from era-contracts github"),
-    );
-
-    verifiers
-        .fee_param_verifier
-        .init_from_github(
-            &args
-                .contracts_commit
-        )
-        .await;
-
-    if let Some(l2_rpc) = &args.l2_rpc {
-        verifiers
-            .network_verifier
-            .add_l2_network_rpc(l2_rpc.clone());
-    } else {
-        if let Some(l2_chain_id) = args.l2_chain_id {
-            verifiers.network_verifier.add_l2_chain_id(l2_chain_id);
+    if verifiers.testnet_contracts {
+        let chain_id = verifiers.network_verifier.get_l1_chain_id().await;
+        if chain_id == 1 {
+            panic!("Testnet contracts are not expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
         }
-    }
-
-    if let Some(l1_rpc) = &args.l1_rpc {
-        verifiers
-            .network_verifier
-            .add_l1_network_rpc(l1_rpc.clone());
-        if verifiers.testnet_contracts {
-            let chain_id = verifiers.network_verifier.get_l1_chain_id().await;
-            if chain_id == 1 {
-                panic!("Testnet contracts are not expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
-            }
-        }
-        verifiers
-            .fee_param_verifier
-            .init_from_on_chain(
-                &Address::from_hex(&args.bridgehub_address.clone()).unwrap(),
-                &verifiers.network_verifier,
-            )
-            .await;
     }
 
     println!(

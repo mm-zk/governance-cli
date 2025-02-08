@@ -7,7 +7,7 @@ use crate::{
         facet_cut_set::{self, FacetCutSet},
         network_verifier::BridgehubInfo,
     },
-    Config,
+    UpgradeOutput,
 };
 use alloy::{
     primitives::{Address, U256},
@@ -250,7 +250,7 @@ impl StateTransition {
 impl DeployedAddresses {
     async fn verify_ntv(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
@@ -282,7 +282,7 @@ impl DeployedAddresses {
 
     async fn verify_validator_timelock(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
@@ -334,7 +334,7 @@ impl DeployedAddresses {
 
     async fn verify_wrapped_base_token_store(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
@@ -377,7 +377,7 @@ impl DeployedAddresses {
 
     async fn verify_per_chain_info(
         &self,
-        _config: &Config,
+        _config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
@@ -444,7 +444,7 @@ impl DeployedAddresses {
 
     async fn verify_ctm_deployment_tracker(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
@@ -481,7 +481,7 @@ impl DeployedAddresses {
 
     async fn verify_l1_asset_router(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
@@ -531,7 +531,7 @@ impl DeployedAddresses {
 
     async fn verify_l1_nullifier(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
@@ -558,7 +558,7 @@ impl DeployedAddresses {
 
     async fn verify_l1_erc20_bridge(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
@@ -580,7 +580,7 @@ impl DeployedAddresses {
 
     async fn verify_bridgehub_impl(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
     ) -> Result<()> {
@@ -602,7 +602,7 @@ impl DeployedAddresses {
 
     async fn verify_chain_type_manager(
         &self,
-        _config: &Config,
+        _config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
@@ -618,7 +618,7 @@ impl DeployedAddresses {
 
     async fn verify_admin_facet(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
@@ -635,7 +635,7 @@ impl DeployedAddresses {
 
     async fn verify_executor_facet(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
@@ -651,7 +651,7 @@ impl DeployedAddresses {
 
     async fn verify_getters_facet(
         &self,
-        _config: &Config,
+        _config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
@@ -667,7 +667,7 @@ impl DeployedAddresses {
 
     async fn verify_mailbox_facet(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
@@ -684,7 +684,7 @@ impl DeployedAddresses {
 
     async fn verify_rollup_da_manager(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
@@ -720,7 +720,7 @@ impl DeployedAddresses {
 
     async fn verify_transitionary_owner(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
@@ -740,7 +740,7 @@ impl DeployedAddresses {
 
     async fn verify_bridged_token_beacon(
         &self,
-        _config: &Config,
+        _config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         _bridgehub_info: &BridgehubInfo,
@@ -780,7 +780,7 @@ impl DeployedAddresses {
 
     async fn verify_governance_upgrade_timer(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
@@ -811,7 +811,7 @@ impl DeployedAddresses {
 
     pub async fn get_expected_facet_cuts(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
     ) -> anyhow::Result<(FacetCutSet, FacetCutSet)> {
         let bridgehub_addr = verifiers.bridgehub_address;
@@ -871,7 +871,7 @@ impl DeployedAddresses {
 
     pub async fn verify(
         &self,
-        config: &Config,
+        config: &UpgradeOutput,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
     ) -> anyhow::Result<()> {

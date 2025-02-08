@@ -14,8 +14,7 @@ use crate::utils::{
     bytecode_verifier::BytecodeVerifier,
     fee_param_verifier::FeeParamVerifier,
     get_contents_from_github,
-    network_verifier::NetworkVerifier,
-    selector_verifier::SelectorVerifier,
+    network_verifier::{self, NetworkVerifier},
 };
 
 sol! {
@@ -23,28 +22,37 @@ sol! {
 }
 
 /// Holds various verifiers and configuration parameters.
-#[derive(Default)]
 pub struct Verifiers {
     pub testnet_contracts: bool,
     pub bridgehub_address: Address,
-    pub selector_verifier: SelectorVerifier,
     pub address_verifier: AddressVerifier,
     pub bytecode_verifier: BytecodeVerifier,
     pub network_verifier: NetworkVerifier,
-    pub genesis_config: Option<GenesisConfig>,
+    pub genesis_config: GenesisConfig,
     pub fee_param_verifier: FeeParamVerifier,
 }
 
 impl Verifiers {
     /// Creates a new `Verifiers` instance.
-    pub fn new(
+    pub async fn new(
         testnet_contracts: bool,
         bridgehub_address: impl AsRef<str>,
+        era_commit: &str,
+        contracts_commit: &str,
+        l1_rpc: String,
+        era_chain_id: u64,
     ) -> Self {
+        let bridgehub_address = Address::from_hex(bridgehub_address.as_ref()).expect("Bridgehub address");
+        let network_verifier = NetworkVerifier::new(l1_rpc, era_chain_id);
+        let fee_param_verifier =  FeeParamVerifier::safe_init(&bridgehub_address, &network_verifier, contracts_commit).await;
         Self {
             testnet_contracts,
-            bridgehub_address: Address::from_hex(bridgehub_address.as_ref()).expect("Bridgehub address"),
-            ..Default::default()
+            bridgehub_address,
+            address_verifier: Default::default(),
+            bytecode_verifier: BytecodeVerifier::init_from_github(contracts_commit).await,
+            network_verifier,
+            genesis_config: GenesisConfig::init_from_github(era_commit).await.expect("Failed to init"),
+            fee_param_verifier
         }
     }
 

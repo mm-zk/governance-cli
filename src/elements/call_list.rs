@@ -1,5 +1,5 @@
 use alloy::{hex, sol, sol_types::SolValue};
-use crate::verifiers::Verifiers;
+use crate::{utils::compute_selector, verifiers::Verifiers};
 use std::collections::VecDeque;
 
 sol! {
@@ -85,7 +85,7 @@ fn expect_simple_call(
         ));
     }
 
-    let method_selector = verifiers.selector_verifier.compute_selector(method_name);
+    let method_selector = compute_selector(method_name);
 
     if call.data.len() < 4 {
         return Err("Call data is too short".into());

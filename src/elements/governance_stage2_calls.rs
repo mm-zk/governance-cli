@@ -1,8 +1,5 @@
 use crate::{
-    elements::initialize_data_new_chain::InitializeDataNewChain,
-    get_expected_old_protocol_version,
-    verifiers::Verifiers,
-    utils::facet_cut_set::{self, FacetCutSet},
+    elements::initialize_data_new_chain::InitializeDataNewChain, get_expected_old_protocol_version, utils::{compute_selector, facet_cut_set::{self, FacetCutSet}}, verifiers::Verifiers
 };
 use alloy::{
     hex, primitives::U256, sol,
@@ -168,7 +165,7 @@ impl GovernanceStage2Calls {
         )?;
 
         // Compute the selector once so that its lifetime is extended.
-        let init_v2_selector = verifiers.selector_verifier.compute_selector("initializeV2()");
+        let init_v2_selector = compute_selector("initializeV2()");
         self.verify_upgrade_call(
             verifiers,
             result,
@@ -274,29 +271,24 @@ impl ChainCreationParams {
             ));
         }
 
-        let genesis_config = verifiers
-            .genesis_config
-            .as_ref()
-            .expect("Genesis config missing in verifiers");
-
-        if self.genesisBatchHash.to_string() != genesis_config.genesis_root {
+        if self.genesisBatchHash.to_string() != verifiers.genesis_config.genesis_root {
             result.report_error(&format!(
                 "Expected genesis batch hash to be {}, but got {}",
-                genesis_config.genesis_root, self.genesisBatchHash
+                verifiers.genesis_config.genesis_root, self.genesisBatchHash
             ));
         }
 
-        if self.genesisIndexRepeatedStorageChanges != genesis_config.genesis_rollup_leaf_index {
+        if self.genesisIndexRepeatedStorageChanges != verifiers.genesis_config.genesis_rollup_leaf_index {
             result.report_error(&format!(
                 "Expected genesis index repeated storage changes to be {}, but got {}",
-                genesis_config.genesis_rollup_leaf_index, self.genesisIndexRepeatedStorageChanges
+                verifiers.genesis_config.genesis_rollup_leaf_index, self.genesisIndexRepeatedStorageChanges
             ));
         }
 
-        if self.genesisBatchCommitment.to_string() != genesis_config.genesis_batch_commitment {
+        if self.genesisBatchCommitment.to_string() != verifiers.genesis_config.genesis_batch_commitment {
             result.report_error(&format!(
                 "Expected genesis batch commitment to be {}, but got {}",
-                genesis_config.genesis_batch_commitment, self.genesisBatchCommitment
+                verifiers.genesis_config.genesis_batch_commitment, self.genesisBatchCommitment
             ));
         }
 
