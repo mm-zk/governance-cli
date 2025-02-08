@@ -54,7 +54,7 @@ fn verify_force_deployments(
         }
         {
             // If address matches - then check the bytecode.
-            result.expect_bytecode(verifiers, &force_deployment.bytecodeHash, contract);
+            result.expect_zk_bytecode(verifiers, &force_deployment.bytecodeHash, contract);
 
             if force_deployment.callConstructor != *constructor {
                 result.report_error(&format!(

@@ -7,7 +7,9 @@ use super::{compute_hash_with_arguments, get_contents_from_github};
 
 #[derive(Default)]
 pub struct BytecodeVerifier {
-    pub bytecode_hash_to_file: HashMap<FixedBytes<32>, String>,
+    pub evm_init_bytecode_hash_to_file: HashMap<FixedBytes<32>, String>,
+    pub evm_deployed_bytecode_hash_to_file: HashMap<FixedBytes<32>, String>,
+    pub zk_bytecode_hash_to_file: HashMap<FixedBytes<32>, String>,
     pub bytecode_file_to_zkhash: HashMap<String, FixedBytes<32>>,
 }
 
@@ -17,7 +19,7 @@ impl BytecodeVerifier {
         // We do not know how many params there were, we just brute force from 0 to 10
         for i in 0..10 {
             if let Some(h) = compute_hash_with_arguments(&Bytes::copy_from_slice(maybe_bytecode), i) {
-                if let Some(name) = self.bytecode_hash_to_file.get(&h) {
+                if let Some(name) = self.evm_init_bytecode_hash_to_file.get(&h) {
                     return Some((
                         name.clone(),
                         maybe_bytecode[maybe_bytecode.len() - 32 * i..].to_vec()
@@ -36,7 +38,7 @@ impl BytecodeVerifier {
 
 
         // But just in case, we'll cross check the result
-        assert!(self.bytecode_hash_to_file(&keccak256(&create2_and_transfer_bytecode)).unwrap() == "l1-contracts/Create2AndTransfer");
+        assert!(self.evm_init_bytecode_hash_to_file(&keccak256(&create2_and_transfer_bytecode)).unwrap() == "l1-contracts/Create2AndTransfer");
 
         create2_and_transfer_bytecode
     }
@@ -70,34 +72,47 @@ impl BytecodeVerifier {
     //     None
     // }
 
-    pub fn bytecode_hash_to_file(&self, bytecode_hash: &FixedBytes<32>) -> Option<&String> {
-        self.bytecode_hash_to_file.get(bytecode_hash)
+
+    pub fn evm_init_bytecode_hash_to_file(&self, bytecode_hash: &FixedBytes<32>) -> Option<&String> {
+        self.evm_init_bytecode_hash_to_file.get(bytecode_hash)
     }
 
-    pub fn add_bytecode_hash(&mut self, bytecode_hash: FixedBytes<32>, file: String) {
-        self.bytecode_hash_to_file
-            .insert(bytecode_hash, file.clone());
+    pub fn evm_deployed_bytecode_hash_to_file(&self, bytecode_hash: &FixedBytes<32>) -> Option<&String> {
+        self.evm_deployed_bytecode_hash_to_file.get(bytecode_hash)
+    }
+
+    pub fn zk_bytecode_hash_to_file(&self, bytecode_hash: &FixedBytes<32>) -> Option<&String> {
+        self.zk_bytecode_hash_to_file.get(bytecode_hash)
+    }
+
+    pub fn add_evm_deployed_bytecode_hash(&mut self, bytecode_hash: FixedBytes<32>, file: String) {
+        self.evm_deployed_bytecode_hash_to_file.insert(bytecode_hash, file);
     }
 
     pub async fn init_from_github(&mut self, commit: &str) {
         let contract_hashes = ContractHashes::init_from_github(commit).await;
         for contract_hash in contract_hashes.hashes {
-            for maybe_hash in [
-                &contract_hash.evm_bytecode_hash,
-                &contract_hash.evm_deployed_bytecode_hash,
-                &contract_hash.zk_bytecode_hash,
-            ] {
-                if let Some(hash) = maybe_hash {
-                    let bytecode_hash =
-                        FixedBytes::try_from(hex::decode(&hash).unwrap().as_slice()).unwrap();
-                    self.add_bytecode_hash(bytecode_hash, contract_hash.contract_name.clone());
-                }
+
+            if let Some(hash) = contract_hash.evm_bytecode_hash {
+                let bytecode_hash =
+                    FixedBytes::try_from(hex::decode(&hash).unwrap().as_slice()).unwrap();
+
+                self.evm_init_bytecode_hash_to_file.insert(bytecode_hash, contract_hash.contract_name.clone());
             }
+
+            if let Some(hash) = contract_hash.evm_deployed_bytecode_hash {
+                let bytecode_hash =
+                    FixedBytes::try_from(hex::decode(&hash).unwrap().as_slice()).unwrap();
+
+                self.evm_deployed_bytecode_hash_to_file.insert(bytecode_hash, contract_hash.contract_name.clone());
+            }
+
             if let Some(hash) = &contract_hash.zk_bytecode_hash {
                 let bytecode_hash =
                     FixedBytes::try_from(hex::decode(&hash).unwrap().as_slice()).unwrap();
                 self.bytecode_file_to_zkhash
-                    .insert(contract_hash.contract_name, bytecode_hash);
+                    .insert(contract_hash.contract_name.clone(), bytecode_hash);
+                self.zk_bytecode_hash_to_file.insert(bytecode_hash, contract_hash.contract_name);
             }
         }
     }

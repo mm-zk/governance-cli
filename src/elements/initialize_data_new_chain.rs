@@ -52,12 +52,12 @@ impl InitializeDataNewChain {
             result.report_error("Verifier params must be empty.");
         }
 
-        result.expect_bytecode(
+        result.expect_zk_bytecode(
             verifiers,
             &self.l2BootloaderBytecodeHash,
             "proved_batch.yul",
         );
-        result.expect_bytecode(
+        result.expect_zk_bytecode(
             verifiers,
             &self.l2DefaultAccountBytecodeHash,
             "system-contracts/DefaultAccount",

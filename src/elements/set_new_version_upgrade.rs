@@ -224,7 +224,7 @@ impl ProposedUpgrade {
         let mut expected_bytecodes: HashSet<&str> = EXPECTED_BYTECODES.into();
 
         for dep in deps {
-            let Some(file_name) = verifiers.bytecode_verifier.bytecode_hash_to_file(&dep) else {
+            let Some(file_name) = verifiers.bytecode_verifier.zk_bytecode_hash_to_file(&dep) else {
                 result.report_error(&format!(
                     "Invalid dependency in factory deps - cannot find file for hash: {:?}",
                     dep
@@ -273,8 +273,8 @@ impl ProposedUpgrade {
 
         self.verify_transaction(verifiers, result, expected_version, bytecodes_supplier_addr).await?;
 
-        result.expect_bytecode(verifiers, &self.bootloaderHash, "proved_batch.yul");
-        result.expect_bytecode(
+        result.expect_zk_bytecode(verifiers, &self.bootloaderHash, "proved_batch.yul");
+        result.expect_zk_bytecode(
             verifiers,
             &self.defaultAccountHash,
             "system-contracts/DefaultAccount",

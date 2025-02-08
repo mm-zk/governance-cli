@@ -165,7 +165,7 @@ impl NetworkVerifier {
         Address::from_slice(&addr_as_bytes[12..])
     }
 
-    pub async fn get_bridgehub_info(&self, bridgehub_addr: Address) -> Option<BridgehubInfo> {
+    pub async fn get_bridgehub_info(&self, bridgehub_addr: Address) -> BridgehubInfo {
         let provider = ProviderBuilder::new().on_http(self.l1_rpc.parse().unwrap());
 
         let bridgehub = Bridgehub::new(bridgehub_addr, provider.clone());
@@ -191,7 +191,7 @@ impl NetworkVerifier {
         let legacy_bridge = shared_bridge.legacyBridge().call().await.unwrap()._0;
         let l1_weth_token_address = shared_bridge.L1_WETH_TOKEN().call().await.unwrap()._0;
 
-        Some(BridgehubInfo {
+        BridgehubInfo {
             shared_bridge: shared_bridge_address,
             legacy_bridge,
             stm_address,
@@ -199,7 +199,7 @@ impl NetworkVerifier {
             l1_weth_token_address,
             ecosystem_admin,
             bridgehub_addr
-        })
+        }
     }
 
     /// Fetches the `transaction` and tries to parse it as a CREATE2 deployment 

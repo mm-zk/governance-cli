@@ -39,15 +39,13 @@ impl Verifiers {
     }
 
     pub async fn append_addresses(&mut self) -> anyhow::Result<()> {
-        // fixme: unwrap
-        let info = self.network_verifier.get_bridgehub_info(self.bridgehub_address).await.unwrap();
+        let info = self.network_verifier.get_bridgehub_info(self.bridgehub_address).await;
 
         self.address_verifier.add_address(self.bridgehub_address, "bridgehub_proxy");
         self.address_verifier.add_address(info.stm_address, "state_transition_manager");
         self.address_verifier.add_address(info.transparent_proxy_admin, "transparent_proxy_admin");
         self.address_verifier.add_address(info.shared_bridge, "old_shared_bridge_proxy");
         self.address_verifier.add_address( info.legacy_bridge, "legacy_erc20_bridge_proxy");
-// protocol_upgrade_handler_transparent_proxy_admin
         Ok(())
     }
 }
@@ -119,7 +117,7 @@ impl VerificationResult {
     }
 
     #[track_caller]
-    pub fn expect_bytecode(
+    pub fn expect_zk_bytecode(
         &mut self,
         verifiers: &Verifiers,
         bytecode_hash: &FixedBytes<32>,
@@ -127,7 +125,7 @@ impl VerificationResult {
     ) {
         match verifiers
             .bytecode_verifier
-            .bytecode_hash_to_file(bytecode_hash)
+            .zk_bytecode_hash_to_file(bytecode_hash)
         {
             Some(file_name) => {
                 if file_name != expected {
@@ -161,7 +159,7 @@ impl VerificationResult {
     ) {
         let deployed_bytecode = verifiers.network_verifier.get_bytecode_hash_at(address).await;
 
-        let deployed_file = deployed_bytecode.and_then(|x| verifiers.bytecode_verifier.bytecode_hash_to_file(&x));
+        let deployed_file = deployed_bytecode.and_then(|x| verifiers.bytecode_verifier.evm_deployed_bytecode_hash_to_file(&x));
         
         let Some(deployed_file) = deployed_file else {
             self.report_error(&format!(

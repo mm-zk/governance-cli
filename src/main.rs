@@ -253,7 +253,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // some constants -- TODO: verify
-    verifiers.bytecode_verifier.add_bytecode_hash(
+    verifiers.bytecode_verifier.add_evm_deployed_bytecode_hash(
         FixedBytes::<32>::from_hex(
             "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989",
         )
@@ -261,7 +261,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Create2Factory".to_string(),
     );
 
-    verifiers.bytecode_verifier.add_bytecode_hash(
+    verifiers.bytecode_verifier.add_evm_deployed_bytecode_hash(
         FixedBytes::<32>::from_hex(
             "0x1d8a3e7186b2285da5ef3ccf4c63a672e91873f2ffdec522a241f72bfcab11c5",
         )
@@ -271,7 +271,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Hash of the proxy admin used for stage proofs
     // https://sepolia.etherscan.io/address/0x93AEeE8d98fB0873F8fF595fDd534A1f288786D2
-    verifiers.bytecode_verifier.add_bytecode_hash(
+    verifiers.bytecode_verifier.add_evm_deployed_bytecode_hash(
         FixedBytes::<32>::from_hex(
             "1e651120773914ac75c42598ceac4da0dc3e21709d438937f742ecf916ac30ae",
         )

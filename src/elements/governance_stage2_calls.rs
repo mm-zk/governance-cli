@@ -240,8 +240,7 @@ impl GovernanceStage2Calls {
             let decoded = 
                 setAddressesCall::abi_decode(&self.calls.elems[5].data, true).unwrap();
             
-            // FIXME: the name is very confusing
-            result.expect_address(&verifiers, &decoded._assetRouter, "shared_bridge_proxy");
+            result.expect_address(&verifiers, &decoded._assetRouter, "l1_asset_router_proxy");
             result.expect_address(&verifiers, &decoded._l1CtmDeployer, "ctm_deployment_tracker");
             result.expect_address(&verifiers, &decoded._messageRoot, "l1_message_root");
         }
@@ -259,7 +258,7 @@ impl GovernanceStage2Calls {
                 setL1AssetRouterCall::abi_decode(&self.calls.elems[7].data, true)
                     .unwrap();
 
-            result.expect_address(verifiers, &decoded._l1AssetRouter, "shared_bridge_proxy");
+            result.expect_address(verifiers, &decoded._l1AssetRouter, "l1_asset_router_proxy");
         }
 
         {

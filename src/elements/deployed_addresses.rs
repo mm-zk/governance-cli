@@ -228,7 +228,7 @@ impl DeployedAddresses {
     pub fn add_to_verifier(&self, address_verifier: &mut AddressVerifier) {
         address_verifier.add_address(self.native_token_vault_addr, "native_token_vault");
         address_verifier.add_address(self.validator_timelock_addr, "validator_timelock");
-        address_verifier.add_address(self.bridges.shared_bridge_proxy_addr, "shared_bridge_proxy");
+        address_verifier.add_address(self.bridges.shared_bridge_proxy_addr, "l1_asset_router_proxy");
         address_verifier.add_address(self.bridgehub.message_root_proxy_addr, "l1_message_root");
         address_verifier.add_address(
             self.bridgehub.ctm_deployment_tracker_proxy_addr,
@@ -735,9 +735,7 @@ impl DeployedAddresses {
         verifiers: &crate::traits::Verifiers,
     ) -> anyhow::Result<(FacetCutSet, FacetCutSet)> {
         let bridgehub_addr = verifiers.bridgehub_address;
-        let Some(bridgehub_info) = verifiers.network_verifier.get_bridgehub_info(bridgehub_addr).await else {
-            anyhow::bail!("Can not verify deployed addresses without bridgehub");
-        };
+        let bridgehub_info = verifiers.network_verifier.get_bridgehub_info(bridgehub_addr).await;
         let stm = StateTransitionManagerLegacy::new(
             bridgehub_info.stm_address,
             verifiers.network_verifier.get_l1_provider().unwrap()
@@ -783,9 +781,7 @@ impl DeployedAddresses {
     ) -> anyhow::Result<()> {
         let bridgehub_addr = verifiers.bridgehub_address;
 
-        let Some(bridgehub_info) = verifiers.network_verifier.get_bridgehub_info(bridgehub_addr).await else {
-            anyhow::bail!("Can not verify deployed addresses without bridgehub");
-        };
+        let bridgehub_info = verifiers.network_verifier.get_bridgehub_info(bridgehub_addr).await;
 
         self.verify_ntv(config, verifiers, result, &bridgehub_info).await;
         self.verify_validator_timelock(config, verifiers, result, &bridgehub_info).await;

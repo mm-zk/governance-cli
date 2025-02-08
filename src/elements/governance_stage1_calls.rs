@@ -101,7 +101,7 @@ impl GovernanceStage1Calls {
 
         let list_of_calls = [
             ("validator_timelock", "acceptOwnership()"),
-            ("shared_bridge_proxy", "acceptOwnership()"),
+            ("l1_asset_router_proxy", "acceptOwnership()"),
             ("ctm_deployment_tracker", "acceptOwnership()"),
             ("rollup_da_manager", "acceptOwnership()"),
             ("state_transition_manager",
