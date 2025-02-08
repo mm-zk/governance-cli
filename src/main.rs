@@ -5,15 +5,14 @@ use alloy::{
 use serde::Deserialize;
 use std::{fmt::Debug, fs, str::FromStr};
 use traits::{GenesisConfig, VerificationResult, Verifiers, Verify};
-use utils::address_verifier::AddressVerifier;
+use utils::{address_verifier::AddressVerifier, apply_l2_to_l1_alias};
 
 mod elements;
 mod traits;
 mod utils;
 use clap::Parser;
 use elements::{
-    call_list::CallList, deployed_addresses::DeployedAddresses,
-    governance_stage1_calls::GovernanceStage1Calls, governance_stage2_calls::GovernanceStage2Calls, protocol_version::ProtocolVersion,
+    call_list::CallList, deployed_addresses::DeployedAddresses, governance_stage1_calls::GovernanceStage1Calls, governance_stage2_calls::GovernanceStage2Calls, post_upgrade_calldata::compute_expected_address_for_file, protocol_version::ProtocolVersion
 };
 
 const CONTRACTS_COMMIT: &str = "16dedf6d77695ce00f81fce35a3066381b97fca1";
@@ -21,6 +20,7 @@ const ERA_COMMIT: &str = "ee14cb4826dbec00e9e7d909ed9af3994379df46";
 
 pub(crate) const EXPECTED_NEW_PROTOCOL_VERSION_STR: &'static str = "0.26.0";
 pub(crate) const EXPECTED_OLD_PROTOCOL_VERSION_STR: &'static str = "0.25.0";
+pub(crate) const MAX_NUMBER_OF_ZK_CHAINS: u32 = 100;
 
 pub(crate) fn get_expected_new_protocol_version() -> ProtocolVersion {
     ProtocolVersion::from_str(EXPECTED_NEW_PROTOCOL_VERSION_STR).unwrap()
@@ -283,7 +283,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut result = VerificationResult::default();
 
     verifiers.address_verifier.add_address(protocol_upgrade_handler_proxy_address, "protocol_upgrade_handler_proxy");
-    // verifiers.address_verifier.add_address(address, name);
+    verifiers.address_verifier.add_address(apply_l2_to_l1_alias(protocol_upgrade_handler_proxy_address), "aliased_protocol_upgrade_handler_proxy");
+    verifiers.address_verifier.add_address(compute_expected_address_for_file(
+        &verifiers,
+        "l1-contracts/L2SharedBridgeLegacy",
+    ),"l2_shared_bridge_legacy_impl");
+    verifiers.address_verifier.add_address(compute_expected_address_for_file(
+        &verifiers,
+        "l1-contracts/L2SharedBrBridgedStandardERC20idgeLegacy",
+    ),"erc20_bridged_standard");
 
     config.add_to_verifier(&mut verifiers.address_verifier);
     verifiers.address_verifier.add_address(verifiers.network_verifier.get_proxy_admin(protocol_upgrade_handler_proxy_address).await, "protocol_upgrade_handler_transparent_proxy_admin");

@@ -3,6 +3,8 @@ use alloy::{
     sol,
 };
 
+use crate::MAX_NUMBER_OF_ZK_CHAINS;
+
 sol! {
     #[derive(Debug)]
     struct FixedForceDeploymentsData {
@@ -54,9 +56,9 @@ impl FixedForceDeploymentsData {
             &self.l2TokenProxyBytecodeHash,
             "l1-contracts/BeaconProxy",
         );
-        result.expect_address(verifiers, &self.aliasedL1Governance, "aliased_governance");
+        result.expect_address(verifiers, &self.aliasedL1Governance, "aliased_protocol_upgrade_handler_proxy");
 
-        if self.maxNumberOfZKChains != U256::from(100) {
+        if self.maxNumberOfZKChains != U256::from(MAX_NUMBER_OF_ZK_CHAINS) {
             result.report_error("maxNumberOfZKChains must be 100");
         }
 
@@ -82,17 +84,17 @@ impl FixedForceDeploymentsData {
             "l1-contracts/MessageRoot",
         );
 
-        /*result.expect_address(
+        result.expect_address(
             verifiers,
             &self.l2SharedBridgeLegacyImpl,
-            "shared_bridge_legacy_impl",
-        );*/
+            "l2_shared_bridge_legacy_impl",
+        );
 
-        /*result.expect_address(
+        result.expect_address(
             verifiers,
             &self.l2BridgedStandardERC20Impl,
             "erc20_bridged_standard",
-        );*/
+        );
 
         if self.dangerousTestOnlyForcedBeacon != Address::ZERO {
             result.report_error("dangerousTestOnlyForcedBeacon must be 0");

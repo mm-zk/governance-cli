@@ -87,7 +87,7 @@ fn address_from_short_hex(hex: &str) -> Address {
     Address::from_hex(&format!("0x{}", padded_hex)).unwrap()
 }
 
-fn compute_expected_address_for_file(verifiers: &crate::traits::Verifiers, file: &str) -> Address {
+pub(crate) fn compute_expected_address_for_file(verifiers: &crate::traits::Verifiers, file: &str) -> Address {
     let code = verifiers
         .bytecode_verifier
         .bytecode_file_to_zkhash
