@@ -1,11 +1,10 @@
+use std::io::Read;
+
 use crate::{
-    elements::initialize_data_new_chain::InitializeDataNewChain, get_expected_old_protocol_version, traits::{Verifiers, Verify}
+    elements::initialize_data_new_chain::InitializeDataNewChain, get_expected_old_protocol_version, traits::{Verifiers, Verify}, utils::facet_cut_set::{self, FacetCutSet}
 };
 use alloy::{
-    hex,
-    primitives::U256,
-    sol,
-    sol_types::{SolCall, SolValue},
+    hex, primitives::U256, providers::Provider, sol, sol_types::{SolCall, SolValue}
 };
 
 use super::{
@@ -75,6 +74,16 @@ sol! {
     function setChainCreationParams(ChainCreationParams calldata _chainCreationParams)  {
     }
 
+    /// @notice Faсet structure compatible with the EIP-2535 diamond loupe
+    /// @param addr The address of the facet contract
+    /// @param selectors The NON-sorted array with selectors associated with facet
+    struct Facet {
+        address addr;
+        bytes4[] selectors;
+    }
+
+    function facets() external view returns (Facet[] memory result);
+
 }
 
 impl GovernanceStage2Calls {
@@ -118,11 +127,12 @@ impl GovernanceStage2Calls {
     }
 }
 
-impl Verify for GovernanceStage2Calls {
-    async fn verify(
+impl GovernanceStage2Calls {
+    pub async fn verify(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
+        expected_chain_creation_facets: FacetCutSet
     ) -> anyhow::Result<()> {
         result.print_info("== Gov stage 2 calls ===");
         let list_of_calls = [
@@ -222,7 +232,7 @@ impl Verify for GovernanceStage2Calls {
 
             decoded
                 ._chainCreationParams
-                .verify(verifiers, result)
+                .verify(verifiers, result, expected_chain_creation_facets)
                 .await?;
         }
         
@@ -286,6 +296,7 @@ impl ChainCreationParams {
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
+        expected_chain_creation_facets: FacetCutSet
     ) -> anyhow::Result<()> {
         result.print_info("== Chain creation params ==");
         let genesis_upgrade_address = verifiers
@@ -344,7 +355,7 @@ impl ChainCreationParams {
             ));
         }
 
-        verify_chain_creation_diamond_cut(verifiers, result, &self.diamondCut).await;
+        verify_chain_creation_diamond_cut(verifiers, result, &self.diamondCut, expected_chain_creation_facets).await;
 
         let fixed_force_deployments_data =
             FixedForceDeploymentsData::abi_decode(&self.forceDeploymentsData, true)?;
@@ -360,29 +371,24 @@ pub async fn verify_chain_creation_diamond_cut(
     verifiers: &crate::traits::Verifiers,
     result: &mut crate::traits::VerificationResult,
     diamond_cut: &DiamondCutData,
+    expected_chain_creation_facets: FacetCutSet
 ) {
-    let expected_facets = [
-        "admin_facet",
-        "getters_facet",
-        "mailbox_facet",
-        "executor_facet",
-    ];
 
-    if diamond_cut.facetCuts.len() != expected_facets.len() {
-        result.report_error(&format!(
-            "Expected {} facets, but got {}",
-            expected_facets.len(),
-            diamond_cut.facetCuts.len()
-        ));
+    let mut proposed_facet_cut = FacetCutSet::new();
+    diamond_cut.facetCuts.iter().for_each(|facet| {
+        // FIXME: use a single type for `Action`
+        let action = match facet.action {
+            Action::Add => facet_cut_set::Action::Add,
+            Action::Remove => panic!("Remove unexpected"),
+            Action::Replace => panic!("Replace unexpected"),
+            Action::__Invalid => panic!("Invalid unexpected")
+        };
+        proposed_facet_cut.add_facet(facet.facet, facet.isFreezable, action);
+    });
+    if expected_chain_creation_facets != proposed_facet_cut {
+        result.report_error(&format!("Invalid chain creation facet cut. Expected: {:#?}\nReceived: {:#?}", expected_chain_creation_facets, proposed_facet_cut));
     }
-    diamond_cut
-        .facetCuts
-        .iter()
-        .zip(expected_facets.iter())
-        .for_each(|(facet, expected_facet)| {
-            verify_facet(verifiers, result, facet, expected_facet);
-        });
-
+    
     result.expect_address(verifiers, &diamond_cut.initAddress, "diamond_init");
     let intialize_data_new_chain =
         InitializeDataNewChain::abi_decode(&diamond_cut.initCalldata, true).unwrap();

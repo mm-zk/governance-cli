@@ -7,11 +7,11 @@ use crate::{
         protocol_version::ProtocolVersion, set_new_version_upgrade::upgradeCall,
         upgrade_deadline::UpgradeDeadline,
     },
-    traits::Verify,
+    traits::Verify, utils::facet_cut_set::{self, FacetCutSet},
 };
 
 use super::{
-    call_list::CallList, deployed_addresses::DeployedAddresses, governance_stage2_calls::{setValidatorTimelockCall, DiamondCutData}, set_new_version_upgrade::{setNewVersionUpgradeCall, FacetCut}
+    call_list::CallList, deployed_addresses::DeployedAddresses, governance_stage2_calls::{setValidatorTimelockCall, DiamondCutData}, set_new_version_upgrade::{self, setNewVersionUpgradeCall, FacetCut}
 };
 
 sol! {
@@ -57,14 +57,36 @@ pub struct GovernanceStage1Calls {
 
 async fn verity_facet_cuts(
     facet_cuts: &[FacetCut],
-    deployed_addresses: &DeployedAddresses,
-    verifiers: &crate::traits::Verifiers,
     result: &mut crate::traits::VerificationResult,
+    expected_upgrade_facets: FacetCutSet
 ) {
-    // Facets cuts must contain firstly facets to be deleted,
-    // and then the ones to be added.
+    // We ensure two invariants here:
+    // - Firstly we use `Remove` operations only. This is mainly for ensuring that
+    // the upgrade will pass.
+    // - Secondly, we ensure that the set of operations is identical.
+    let mut used_add = false;
+    let mut proposed_facet_cuts = FacetCutSet::new();
+    facet_cuts.iter().for_each(|facet| {
+        let action = match facet.action {
+            set_new_version_upgrade::Action::Add => {
+                used_add = true;
+                facet_cut_set::Action::Add
+            },
+            set_new_version_upgrade::Action::Remove => {
+                assert!(!used_add, "Unexpected `Remove` operation after `Add`");
+                facet_cut_set::Action::Remove
+            },
+            set_new_version_upgrade::Action::Replace => panic!("Replace unexpected"),
+            set_new_version_upgrade::Action::__Invalid => panic!("Invalid unexpected")
+        };
 
-    // FIXME: implement
+        proposed_facet_cuts.add_facet(facet.facet, facet.isFreezable, action);
+        facet.selectors.iter().for_each(|selector| proposed_facet_cuts.add_selector(facet.facet, selector.0));
+    });
+
+    if proposed_facet_cuts != expected_upgrade_facets {
+        result.report_error(&format!("Incorrect facet cuts. Expected {:#?}\nReceived: {:#?}", expected_upgrade_facets, proposed_facet_cuts));
+    }
 }
 
 impl GovernanceStage1Calls {
@@ -73,6 +95,7 @@ impl GovernanceStage1Calls {
         deployed_addresses: &DeployedAddresses,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
+        expected_upgrade_facets: FacetCutSet
     ) -> anyhow::Result<()> {
         result.print_info("== Gov stage 1 calls ===");
 
@@ -136,9 +159,8 @@ impl GovernanceStage1Calls {
 
         verity_facet_cuts(
             &diamond_cut.facetCuts, 
-            deployed_addresses,
-            verifiers,
-            result
+            result,
+            expected_upgrade_facets
         ).await;
 
         let upgrade = upgradeCall::abi_decode(&diamond_cut.initCalldata, true).unwrap();

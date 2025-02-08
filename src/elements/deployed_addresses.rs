@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{traits::Verify, utils::{address_verifier::AddressVerifier, network_verifier::BridgehubInfo}, Config};
+use crate::{traits::Verify, utils::{address_verifier::AddressVerifier, facet_cut_set::{self, FacetCutSet}, network_verifier::BridgehubInfo}, Config};
 use alloy::{primitives::{Address, U256}, providers::Provider, sol, sol_types::{SolCall, SolConstructor, SolValue}};
 use reqwest::get;
 use serde::Deserialize;
@@ -154,6 +154,30 @@ sol! {
         constructor(uint256 _initialDelay, uint256 _maxAdditionalDelay, address _timerGovernance, address _initialOwner) {}
     }
 }
+
+struct BasicFacetInfo {
+    name: &'static str,
+    is_freezable: bool
+}
+
+const EXPECTED_FACETS: [BasicFacetInfo; 4] = [
+    BasicFacetInfo {
+        name: "admin_facet",
+        is_freezable: false,
+    },
+    BasicFacetInfo {
+        name: "getters_facet",
+        is_freezable: false,
+    },
+    BasicFacetInfo {
+        name: "mailbox_facet",
+        is_freezable: true,
+    },
+    BasicFacetInfo {
+        name: "executor_facet",
+        is_freezable: true,
+    }
+];
 
 #[derive(Debug, Deserialize)]
 pub struct DeployedAddresses {
@@ -704,38 +728,51 @@ impl DeployedAddresses {
         }
     }
 
-    // Verifies the correctness of the upgrade and returns the expected facet cut to apply the facets
+    // Returns two facet cuts: one to delete (during upgrade only) and one to add (both during upgrade and new chain creation) 
     pub async fn get_expected_facet_cuts(
         &self,
         config: &Config,
         verifiers: &crate::traits::Verifiers,
-    ) -> anyhow::Result<Vec<FacetCut>> {
-        // fixme: remove unwrap
+    ) -> anyhow::Result<(FacetCutSet, FacetCutSet)> {
         let bridgehub_addr = verifiers.bridgehub_address;
-
         let Some(bridgehub_info) = verifiers.network_verifier.get_bridgehub_info(bridgehub_addr).await else {
             anyhow::bail!("Can not verify deployed addresses without bridgehub");
         };
-
         let stm = StateTransitionManagerLegacy::new(
             bridgehub_info.stm_address,
             verifiers.network_verifier.get_l1_provider().unwrap()
         );
-
         let era_address = stm.getHyperchain(U256::from(config.era_chain_id)).call().await.unwrap().chainAddress;
 
         
+        let mut facets_to_remove = FacetCutSet::new();
         let getters_facet  = GettersFacet::new(
             era_address,
             verifiers.network_verifier.get_l1_provider().unwrap()
         );
-
         let current_facets = getters_facet.facets().call().await.unwrap().result;
+        current_facets.into_iter().for_each(|f|  {
+            facets_to_remove.add_facet(f.addr, false, facet_cut_set::Action::Remove);
+            f.selectors.into_iter().for_each(|selector| facets_to_remove.add_selector(f.addr, selector.0));
+        });
 
-        // fixme: ensure that the facets are deleted.
-        // fixme: ensure that the new facets are included. 
+        let mut facets_to_add = FacetCutSet::new();
 
-        Ok(vec![])
+        let l1_provider = verifiers.network_verifier.get_l1_provider().unwrap();
+        for facet in EXPECTED_FACETS.iter() {
+            let address = verifiers.address_verifier.name_to_address.get(facet.name).expect(&format!("{} not found", facet.name));
+    
+            let bytecode = l1_provider.get_code_at(*address).await.expect(&format!("Failed to retrieve the bytecode for {}", address));
+            // The easiest way to get the correct selectors is to extract those.
+            let info: Vec<_>  = evmole::contract_info(evmole::ContractInfoArgs::new(&bytecode).with_selectors()).functions.unwrap().into_iter().map(|f| f.selector).collect();
+            
+            facets_to_add.add_facet(*address, facet.is_freezable, facet_cut_set::Action::Add);
+            for selector in info {
+                facets_to_add.add_selector(*address, selector);
+            }
+        }
+    
+        Ok((facets_to_remove, facets_to_add))
     }   
 
     pub async fn verify(

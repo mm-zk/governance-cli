@@ -79,6 +79,7 @@ impl Verify for Config {
 
         // Check that addresses actually contain correct bytecodes.
         self.deployed_addresses.verify(&self, verifiers, result).await?;
+        let (facets_to_remove, facets_to_add) = self.deployed_addresses.get_expected_facet_cuts(&self, verifiers).await?;
 
         result
             .expect_deployed_bytecode(verifiers, &self.create2_factory_addr, "Create2Factory")
@@ -88,12 +89,12 @@ impl Verify for Config {
             calls: CallList::parse(&self.governance_stage1_calls),
         };
 
-        stage1.verify(&self.deployed_addresses, verifiers, result).await?;
+        stage1.verify(&self.deployed_addresses, verifiers, result, facets_to_remove.merge(facets_to_add.clone())).await?;
 
         let stage2 = GovernanceStage2Calls {
             calls: CallList::parse(&self.governance_stage2_calls),
         };
-        stage2.verify(verifiers, result).await?;
+        stage2.verify(verifiers, result, facets_to_add).await?;
 
         Ok(())
     }

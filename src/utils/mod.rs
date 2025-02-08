@@ -9,6 +9,7 @@ pub mod bytecode_verifier;
 pub mod fee_param_verifier;
 pub mod network_verifier;
 pub mod selector_verifier;
+pub mod facet_cut_set;
 
 pub async fn get_contents_from_github(commit: &str, repo: &str, file_path: &str) -> String {
     let url = format!(
