@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    call_list::CallList, deployed_addresses::DeployedAddresses, governance_stage2_calls::{setValidatorTimelockCall, DiamondCutData}, set_new_version_upgrade::{self, setNewVersionUpgradeCall, FacetCut}
+    call_list::CallList, deployed_addresses::DeployedAddresses, governance_stage2_calls::setValidatorTimelockCall, set_new_version_upgrade::{self, setNewVersionUpgradeCall, FacetCut}
 };
 
 sol! {

@@ -1,5 +1,5 @@
 use alloy::{
-    hex::{self, FromHex, ToHexExt},
+    hex::{FromHex, ToHexExt},
     primitives::{Address, FixedBytes},
 };
 use serde::Deserialize;

@@ -1,4 +1,4 @@
-use alloy::primitives::{Address, B256};
+use alloy::primitives::Address;
 use std::collections::{HashMap, HashSet};
 use std::cmp::Ordering;
 

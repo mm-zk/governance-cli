@@ -1,16 +1,15 @@
 use alloy::consensus::Transaction;
 use alloy::hex::FromHex;
-use alloy::primitives::map::{HashMap, HashSet};
-use alloy::primitives::{keccak256, Address, Bytes, FixedBytes, TxHash, U256};
+use alloy::primitives::map::HashMap;
+use alloy::primitives::{keccak256, Address, FixedBytes, TxHash, U256};
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
 use alloy::transports::http::Http;
-use alloy::{contract, sol};
+use alloy::sol;
 use alloy::sol_types::SolCall;
-use chrono::format::Fixed;
 use reqwest::Client;
 
 use super::bytecode_verifier::BytecodeVerifier;
-use super::{compute_create2_address_evm, compute_hash_with_arguments};
+use super::compute_create2_address_evm;
 
 sol! {
     #[sol(rpc)]

@@ -1,5 +1,3 @@
-use std::io::Read;
-
 use crate::{
     elements::initialize_data_new_chain::InitializeDataNewChain,
     get_expected_old_protocol_version,
@@ -7,7 +5,7 @@ use crate::{
     utils::facet_cut_set::{self, FacetCutSet},
 };
 use alloy::{
-    hex, primitives::U256, providers::Provider, sol,
+    hex, primitives::U256, sol,
     sol_types::{SolCall, SolValue},
 };
 use super::{

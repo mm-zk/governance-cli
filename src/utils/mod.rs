@@ -1,8 +1,8 @@
 use std::{
-    fs::{self, File}, io::{Read, Write}, ops::Add, path::Path
+    fs::{self, File}, io::Write, path::Path
 };
 
-use alloy::{primitives::{keccak256, Address, Bytes, FixedBytes, U160, U256}};
+use alloy::primitives::{keccak256, Address, Bytes, FixedBytes, U160};
 
 pub mod address_verifier;
 pub mod bytecode_verifier;

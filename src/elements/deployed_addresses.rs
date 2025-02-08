@@ -583,7 +583,6 @@ impl DeployedAddresses {
         config: &Config,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
-        bridgehub_info: &BridgehubInfo,
     ) -> Result<()> {
         const MAX_NUMBER_OF_CHAINS: usize = 100;
         result.expect_create2_params(
@@ -758,7 +757,6 @@ impl DeployedAddresses {
 
     async fn verify_message_root(
         &self,
-        config: &Config,
         verifiers: &crate::verifiers::Verifiers,
         result: &mut crate::verifiers::VerificationResult,
         bridgehub_info: &BridgehubInfo,
@@ -887,7 +885,7 @@ impl DeployedAddresses {
         self.verify_l1_asset_router(config, verifiers, result, &bridgehub_info).await?;
         self.verify_l1_nullifier(config, verifiers, result, &bridgehub_info).await?;
         self.verify_l1_erc20_bridge(config, verifiers, result, &bridgehub_info).await?;
-        self.verify_bridgehub_impl(config, verifiers, result, &bridgehub_info).await?;
+        self.verify_bridgehub_impl(config, verifiers, result).await?;
         self.verify_chain_type_manager(config, verifiers, result, &bridgehub_info).await?;
         self.verify_admin_facet(config, verifiers, result, &bridgehub_info).await?;
         self.verify_executor_facet(config, verifiers, result, &bridgehub_info).await?;
@@ -896,7 +894,7 @@ impl DeployedAddresses {
         self.verify_rollup_da_manager(config, verifiers, result, &bridgehub_info).await?;
         self.verify_transitionary_owner(config, verifiers, result, &bridgehub_info).await?;
         self.verify_bridged_token_beacon(config, verifiers, result, &bridgehub_info).await?;
-        self.verify_message_root(config, verifiers, result, &bridgehub_info).await?;
+        self.verify_message_root(verifiers, result, &bridgehub_info).await?;
         self.verify_governance_upgrade_timer(config, verifiers, result, &bridgehub_info).await?;
         self.verify_per_chain_info(config, verifiers, result, &bridgehub_info).await?;
 
