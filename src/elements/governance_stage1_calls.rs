@@ -115,7 +115,7 @@ impl GovernanceStage1Calls {
 
         ];
 
-        self.calls.verify(list_of_calls.into(), verifiers, result)?;
+        self.calls.verify(&list_of_calls, verifiers, result)?;
 
         // Checking the new validator timelock
         {
@@ -124,6 +124,7 @@ impl GovernanceStage1Calls {
 
             result.expect_address(verifiers, &decoded.addr, "validator_timelock");
         }
+
         // Checking the dummy chain creation params
         {
             let decoded = StateTransitionManagerLegacy::setChainCreationParamsCall::abi_decode(&self.calls.elems[6].data, true).unwrap();

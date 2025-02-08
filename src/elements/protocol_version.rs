@@ -1,32 +1,39 @@
-use std::{fmt::Display, str::FromStr};
-
+use std::{fmt, str::FromStr};
 use alloy::primitives::U256;
 
-#[derive(Eq, PartialEq, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub struct ProtocolVersion {
     pub major: u64,
     pub minor: u64,
     pub patch: u64,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct InvalidProtocolVersionError{}
+#[derive(Debug, Clone, Copy)]
+pub struct InvalidProtocolVersionError;
+
+impl fmt::Display for InvalidProtocolVersionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Invalid protocol version format")
+    }
+}
+
+impl std::error::Error for InvalidProtocolVersionError {}
 
 impl FromStr for ProtocolVersion {
     type Err = InvalidProtocolVersionError;
-    fn from_str(version: &str) -> Result<Self, InvalidProtocolVersionError> {
-        let items: Vec<_> = version.split(".").collect();
-        if items.len() != 3{
-            return Err(InvalidProtocolVersionError{})
+
+    fn from_str(version: &str) -> Result<Self, Self::Err> {
+        let mut parts = version.split('.').map(str::parse::<u64>);
+        
+        let major = parts.next().ok_or(InvalidProtocolVersionError)?.map_err(|_| InvalidProtocolVersionError)?;
+        let minor = parts.next().ok_or(InvalidProtocolVersionError)?.map_err(|_| InvalidProtocolVersionError)?;
+        let patch = parts.next().ok_or(InvalidProtocolVersionError)?.map_err(|_| InvalidProtocolVersionError)?;
+        
+        if parts.next().is_some() {
+            return Err(InvalidProtocolVersionError);
         }
 
-        let result = Self {
-            major: items[0].parse().map_err(|_| InvalidProtocolVersionError{})?,
-            minor: items[1].parse().map_err(|_| InvalidProtocolVersionError{})?,
-            patch: items[2].parse().map_err(|_| InvalidProtocolVersionError{})?,
-        };
-
-        Ok(result)
+        Ok(Self { major, minor, patch })
     }
 }
 
@@ -47,8 +54,8 @@ impl From<U256> for ProtocolVersion {
     }
 }
 
-impl Display for ProtocolVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for ProtocolVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "v{}.{}.{}", self.major, self.minor, self.patch)
     }
 }

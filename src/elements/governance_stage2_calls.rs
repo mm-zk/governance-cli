@@ -1,12 +1,15 @@
 use std::io::Read;
 
 use crate::{
-    elements::initialize_data_new_chain::InitializeDataNewChain, get_expected_old_protocol_version, traits::{Verifiers, Verify}, utils::facet_cut_set::{self, FacetCutSet}
+    elements::initialize_data_new_chain::InitializeDataNewChain,
+    get_expected_old_protocol_version,
+    traits::{Verifiers, Verify},
+    utils::facet_cut_set::{self, FacetCutSet},
 };
 use alloy::{
-    hex, primitives::U256, providers::Provider, sol, sol_types::{SolCall, SolValue}
+    hex, primitives::U256, providers::Provider, sol,
+    sol_types::{SolCall, SolValue},
 };
-
 use super::{
     call_list::{Call, CallList},
     fixed_force_deployment::FixedForceDeploymentsData,
@@ -23,6 +26,7 @@ sol! {
 
     function upgradeAndCall(address proxy, address implementation, bytes data) {
     }
+
     function setAddresses(address _assetRouter, address _l1CtmDeployer, address _messageRoot) {}
 
     function setL1NativeTokenVault(address _l1NativeTokenVault);
@@ -32,8 +36,8 @@ sol! {
     }
 
     function singleAddressArgument(address addr) {
-
     }
+
     function setProtocolVersionDeadline(uint256 protocolVersion, uint256 newDeadline) {
     }
 
@@ -52,14 +56,12 @@ sol! {
         bytes4[] selectors;
     }
 
-
     #[derive(Debug)]
     struct DiamondCutData {
         FacetCut[] facetCuts;
         address initAddress;
         bytes initCalldata;
     }
-
 
     #[derive(Debug)]
     struct ChainCreationParams {
@@ -74,7 +76,7 @@ sol! {
     function setChainCreationParams(ChainCreationParams calldata _chainCreationParams)  {
     }
 
-    /// @notice Faсet structure compatible with the EIP-2535 diamond loupe
+    /// @notice Façet structure compatible with the EIP-2535 diamond loupe
     /// @param addr The address of the facet contract
     /// @param selectors The NON-sorted array with selectors associated with facet
     struct Facet {
@@ -83,107 +85,81 @@ sol! {
     }
 
     function facets() external view returns (Facet[] memory result);
-
 }
 
 impl GovernanceStage2Calls {
+    /// Verifies an upgrade call by decoding its data and comparing the proxy and implementation addresses.
     pub fn verify_upgrade_call(
         &self,
         verifiers: &Verifiers,
         result: &mut crate::traits::VerificationResult,
-
         call: &Call,
         proxy_address: &str,
         implementation_address: &str,
-        call_payload: Option<String>,
-    ) {
-        let data = call.data.clone();
-
-        let (proxy, implementation) = match call_payload {
-            Some(call_payload) => {
-                let decoded = upgradeAndCallCall::abi_decode(&data, true).unwrap();
-                if decoded.data != hex::decode(call_payload.clone()).unwrap() {
-                    result.report_error(&format!(
-                        "Expected upgrade call data to be {}, but got {}",
-                        call_payload, decoded.data
-                    ));
-                }
-                (decoded.proxy, decoded.implementation)
-            }
-            None => {
-                let decoded = upgradeCall::abi_decode(&data, true).unwrap();
-                (decoded.proxy, decoded.implementation)
-            }
-        };
-
-        if result.expect_address(verifiers, &proxy, proxy_address) {
-            if result.expect_address(verifiers, &implementation, implementation_address) {
-                result.report_ok(&format!(
-                    "Upgrade call for {} ({}) to {} ({})",
-                    proxy, proxy_address, implementation, implementation_address
+        call_payload: Option<&str>,
+    ) -> anyhow::Result<()> {
+        let data = &call.data;
+        let (proxy, implementation) = if let Some(expected_payload) = call_payload {
+            let decoded = upgradeAndCallCall::abi_decode(data, true)
+                .expect("Failed to decode upgradeAndCall call");
+            let expected_data = hex::decode(expected_payload)
+                .expect("Failed to decode expected call payload from hex");
+            if decoded.data != expected_data {
+                result.report_error(&format!(
+                    "Expected upgrade call data to be {:x?}, but got {:x?}",
+                    expected_data, decoded.data
                 ));
             }
-        }
-    }
-}
+            (decoded.proxy, decoded.implementation)
+        } else {
+            let decoded = upgradeCall::abi_decode(data, true)
+                .expect("Failed to decode upgrade call");
+            (decoded.proxy, decoded.implementation)
+        };
 
-impl GovernanceStage2Calls {
+        if result.expect_address(verifiers, &proxy, proxy_address)
+            && result.expect_address(verifiers, &implementation, implementation_address)
+        {
+            result.report_ok(&format!(
+                "Upgrade call for {} ({}) to {} ({})",
+                proxy, proxy_address, implementation, implementation_address
+            ));
+        }
+        Ok(())
+    }
+
+    /// Verifies all the governance stage 2 calls.
     pub async fn verify(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
-        expected_chain_creation_facets: FacetCutSet
+        expected_chain_creation_facets: FacetCutSet,
     ) -> anyhow::Result<()> {
         result.print_info("== Gov stage 2 calls ===");
+
         let list_of_calls = [
-            (
-                "transparent_proxy_admin",
-                "upgrade(address,address)",
-            ),
-            (
-                "transparent_proxy_admin",
-                "upgradeAndCall(address,address,bytes)",
-            ),
-            (
-                "transparent_proxy_admin",
-                "upgrade(address,address)",
-            ),
-            (
-                "transparent_proxy_admin",
-                "upgrade(address,address)",
-            ),
+            ("transparent_proxy_admin", "upgrade(address,address)"),
+            ("transparent_proxy_admin", "upgradeAndCall(address,address,bytes)"),
+            ("transparent_proxy_admin", "upgrade(address,address)"),
+            ("transparent_proxy_admin", "upgrade(address,address)"),
             (
                 "state_transition_manager",
                 "setChainCreationParams((address,bytes32,uint64,bytes32,((address,uint8,bool,bytes4[])[],address,bytes),bytes))",
             ),
-            (
-                "bridgehub_proxy",
-                "setAddresses(address,address,address)",
-            ),
-            (
-                "old_shared_bridge_proxy",
-                "setL1NativeTokenVault(address)",
-            ),
-            (
-                "old_shared_bridge_proxy",
-                "setL1AssetRouter(address)",
-            ),
-            (
-                "state_transition_manager",
-                "setProtocolVersionDeadline(uint256,uint256)",
-            ),
-            (
-                "upgrade_timer",
-                "checkDeadline()",
-            ),
+            ("bridgehub_proxy", "setAddresses(address,address,address)"),
+            ("old_shared_bridge_proxy", "setL1NativeTokenVault(address)"),
+            ("old_shared_bridge_proxy", "setL1AssetRouter(address)"),
+            ("state_transition_manager", "setProtocolVersionDeadline(uint256,uint256)"),
+            ("upgrade_timer", "checkDeadline()"),
             (
                 "protocol_upgrade_handler_transparent_proxy_admin",
                 "upgradeAndCall(address,address,bytes)",
             ),
         ];
 
-        self.calls.verify(list_of_calls.into(), verifiers, result)?;
+        self.calls.verify(&list_of_calls, verifiers, result)?;
 
+        // Verify each upgrade call.
         self.verify_upgrade_call(
             verifiers,
             result,
@@ -191,20 +167,18 @@ impl GovernanceStage2Calls {
             "state_transition_manager",
             "state_transition_implementation_addr",
             None,
-        );
+        )?;
 
+        // Compute the selector once so that its lifetime is extended.
+        let init_v2_selector = verifiers.selector_verifier.compute_selector("initializeV2()");
         self.verify_upgrade_call(
             verifiers,
             result,
             &self.calls.elems[1],
             "bridgehub_proxy",
             "bridgehub_implementation_addr",
-            Some(
-                verifiers
-                    .selector_verifier
-                    .compute_selector("initializeV2()"),
-            ),
-        );
+            Some(init_v2_selector.as_str()),
+        )?;
 
         self.verify_upgrade_call(
             verifiers,
@@ -213,7 +187,7 @@ impl GovernanceStage2Calls {
             "old_shared_bridge_proxy",
             "l1_nullifier_implementation_addr",
             None,
-        );
+        )?;
 
         self.verify_upgrade_call(
             verifiers,
@@ -222,52 +196,45 @@ impl GovernanceStage2Calls {
             "legacy_erc20_bridge_proxy",
             "erc20_bridge_implementation_addr",
             None,
-        );
+        )?;
 
-        // Now verifying setChainCreationParams
-
+        // Verify setChainCreationParams call.
         {
-            let decoded =
-            setChainCreationParamsCall::abi_decode(&self.calls.elems[4].data, true).unwrap();
-
+            let decoded = setChainCreationParamsCall::abi_decode(&self.calls.elems[4].data, true)
+                .expect("Failed to decode setChainCreationParams call");
             decoded
                 ._chainCreationParams
                 .verify(verifiers, result, expected_chain_creation_facets)
                 .await?;
         }
-        
+
+        // Verify setAddresses call.
         {
-            let decoded = 
-                setAddressesCall::abi_decode(&self.calls.elems[5].data, true).unwrap();
-            
-            result.expect_address(&verifiers, &decoded._assetRouter, "l1_asset_router_proxy");
-            result.expect_address(&verifiers, &decoded._l1CtmDeployer, "ctm_deployment_tracker");
-            result.expect_address(&verifiers, &decoded._messageRoot, "l1_message_root");
+            let decoded = setAddressesCall::abi_decode(&self.calls.elems[5].data, true)
+                .expect("Failed to decode setAddresses call");
+            result.expect_address(verifiers, &decoded._assetRouter, "l1_asset_router_proxy");
+            result.expect_address(verifiers, &decoded._l1CtmDeployer, "ctm_deployment_tracker");
+            result.expect_address(verifiers, &decoded._messageRoot, "l1_message_root");
         }
 
+        // Verify setL1NativeTokenVault call.
         {
-            let decoded =
-                setL1NativeTokenVaultCall::abi_decode(&self.calls.elems[6].data, true)
-                    .unwrap();
-
+            let decoded = setL1NativeTokenVaultCall::abi_decode(&self.calls.elems[6].data, true)
+                .expect("Failed to decode setL1NativeTokenVault call");
             result.expect_address(verifiers, &decoded._l1NativeTokenVault, "native_token_vault");
         }
 
+        // Verify setL1AssetRouter call.
         {
-            let decoded =
-                setL1AssetRouterCall::abi_decode(&self.calls.elems[7].data, true)
-                    .unwrap();
-
+            let decoded = setL1AssetRouterCall::abi_decode(&self.calls.elems[7].data, true)
+                .expect("Failed to decode setL1AssetRouter call");
             result.expect_address(verifiers, &decoded._l1AssetRouter, "l1_asset_router_proxy");
         }
 
+        // Verify setProtocolVersionDeadline call.
         {
-            let decoded = setProtocolVersionDeadlineCall::abi_decode(
-                &self.calls.elems[8].data,
-                true,
-            )
-            .unwrap();
-
+            let decoded = setProtocolVersionDeadlineCall::abi_decode(&self.calls.elems[8].data, true)
+                .expect("Failed to decode setProtocolVersionDeadline call");
             let pv = ProtocolVersion::from(decoded.protocolVersion);
             let expected_old = get_expected_old_protocol_version();
 
@@ -291,129 +258,105 @@ impl GovernanceStage2Calls {
 }
 
 impl ChainCreationParams {
+    /// Verifies the chain creation parameters.
     pub async fn verify(
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
-        expected_chain_creation_facets: FacetCutSet
+        expected_chain_creation_facets: FacetCutSet,
     ) -> anyhow::Result<()> {
         result.print_info("== Chain creation params ==");
-        let genesis_upgrade_address = verifiers
+        let genesis_upgrade_name = verifiers
             .address_verifier
             .name_or_unknown(&self.genesisUpgrade);
-        if genesis_upgrade_address != "genesis_upgrade_addr" {
+        if genesis_upgrade_name != "genesis_upgrade_addr" {
             result.report_error(&format!(
                 "Expected genesis upgrade address to be genesis_upgrade_addr, but got {}",
-                genesis_upgrade_address
+                genesis_upgrade_name
             ));
         }
 
-        if self.genesisBatchHash.to_string()
-            != verifiers.genesis_config.as_ref().unwrap().genesis_root
-        {
+        let genesis_config = verifiers
+            .genesis_config
+            .as_ref()
+            .expect("Genesis config missing in verifiers");
+
+        if self.genesisBatchHash.to_string() != genesis_config.genesis_root {
             result.report_error(&format!(
                 "Expected genesis batch hash to be {}, but got {}",
-                verifiers.genesis_config.as_ref().unwrap().genesis_root,
-                self.genesisBatchHash
+                genesis_config.genesis_root, self.genesisBatchHash
             ));
         }
 
-        if self.genesisIndexRepeatedStorageChanges
-            != verifiers
-                .genesis_config
-                .as_ref()
-                .unwrap()
-                .genesis_rollup_leaf_index
-        {
+        if self.genesisIndexRepeatedStorageChanges != genesis_config.genesis_rollup_leaf_index {
             result.report_error(&format!(
                 "Expected genesis index repeated storage changes to be {}, but got {}",
-                verifiers
-                    .genesis_config
-                    .as_ref()
-                    .unwrap()
-                    .genesis_rollup_leaf_index,
-                self.genesisIndexRepeatedStorageChanges
+                genesis_config.genesis_rollup_leaf_index, self.genesisIndexRepeatedStorageChanges
             ));
         }
 
-        if self.genesisBatchCommitment.to_string()
-            != verifiers
-                .genesis_config
-                .as_ref()
-                .unwrap()
-                .genesis_batch_commitment
-        {
+        if self.genesisBatchCommitment.to_string() != genesis_config.genesis_batch_commitment {
             result.report_error(&format!(
                 "Expected genesis batch commitment to be {}, but got {}",
-                verifiers
-                    .genesis_config
-                    .as_ref()
-                    .unwrap()
-                    .genesis_batch_commitment,
-                self.genesisBatchCommitment
+                genesis_config.genesis_batch_commitment, self.genesisBatchCommitment
             ));
         }
 
-        verify_chain_creation_diamond_cut(verifiers, result, &self.diamondCut, expected_chain_creation_facets).await;
+        verify_chain_creation_diamond_cut(
+            verifiers,
+            result,
+            &self.diamondCut,
+            expected_chain_creation_facets,
+        )
+        .await?;
 
         let fixed_force_deployments_data =
-            FixedForceDeploymentsData::abi_decode(&self.forceDeploymentsData, true)?;
-        fixed_force_deployments_data
-            .verify(verifiers, result)
-            .await?;
+            FixedForceDeploymentsData::abi_decode(&self.forceDeploymentsData, true)
+                .expect("Failed to decode FixedForceDeploymentsData");
+        fixed_force_deployments_data.verify(verifiers, result).await?;
 
         Ok(())
     }
 }
 
+/// Verifies the diamond cut used during chain creation.
 pub async fn verify_chain_creation_diamond_cut(
     verifiers: &crate::traits::Verifiers,
     result: &mut crate::traits::VerificationResult,
     diamond_cut: &DiamondCutData,
-    expected_chain_creation_facets: FacetCutSet
-) {
-
+    expected_chain_creation_facets: FacetCutSet,
+) -> anyhow::Result<()> {
     let mut proposed_facet_cut = FacetCutSet::new();
-    diamond_cut.facetCuts.iter().for_each(|facet| {
-        // FIXME: use a single type for `Action`
+    for facet in &diamond_cut.facetCuts {
         let action = match facet.action {
             Action::Add => facet_cut_set::Action::Add,
-            Action::Remove => panic!("Remove unexpected"),
-            Action::Replace => panic!("Replace unexpected"),
-            Action::__Invalid => panic!("Invalid unexpected")
+            Action::Remove => {
+                result.report_error("Remove action is unexpected in diamond cut");
+                continue;
+            }
+            Action::Replace => {
+                result.report_error("Replace action is unexpected in diamond cut");
+                continue;
+            }
+            Action::__Invalid => {
+                result.report_error("Invalid action in diamond cut");
+                continue;
+            }
         };
         proposed_facet_cut.add_facet(facet.facet, facet.isFreezable, action);
-    });
-    if expected_chain_creation_facets != proposed_facet_cut {
-        result.report_error(&format!("Invalid chain creation facet cut. Expected: {:#?}\nReceived: {:#?}", expected_chain_creation_facets, proposed_facet_cut));
     }
-    
-    result.expect_address(verifiers, &diamond_cut.initAddress, "diamond_init");
-    let intialize_data_new_chain =
-        InitializeDataNewChain::abi_decode(&diamond_cut.initCalldata, true).unwrap();
-    intialize_data_new_chain
-        .verify(verifiers, result)
-        .await
-        .unwrap();
-}
 
-pub fn verify_facet(
-    verifiers: &crate::traits::Verifiers,
-    result: &mut crate::traits::VerificationResult,
-    facet: &FacetCut,
-    expected_facet: &str,
-) {
-    let facet_address = verifiers.address_verifier.name_or_unknown(&facet.facet);
-    if facet_address != expected_facet {
+    if expected_chain_creation_facets != proposed_facet_cut {
         result.report_error(&format!(
-            "Expected facet address to be {}, but got {}",
-            expected_facet, facet_address
+            "Invalid chain creation facet cut. Expected: {:#?}\nReceived: {:#?}",
+            expected_chain_creation_facets, proposed_facet_cut
         ));
     }
-    if facet.action != Action::Add {
-        result.report_error(&format!(
-            "Expected facet {} action to be Add, but got {:?}",
-            expected_facet, facet.action
-        ));
-    }
+
+    result.expect_address(verifiers, &diamond_cut.initAddress, "diamond_init");
+    let initialize_data_new_chain = InitializeDataNewChain::abi_decode(&diamond_cut.initCalldata, true)
+        .expect("Failed to decode InitializeDataNewChain");
+    initialize_data_new_chain.verify(verifiers, result).await?;
+
+    Ok(())
 }

@@ -106,8 +106,8 @@ impl NetworkVerifier {
         }
     }
 
-    pub async fn get_chain_diamond_proxy(&self, stm_addr: Address, era_chain_id: u64) -> Option<Address> {
-        let provider = self.get_l1_provider()?;
+    pub async fn get_chain_diamond_proxy(&self, stm_addr: Address, era_chain_id: u64) -> Address {
+        let provider = self.get_l1_provider().unwrap();
 
         let ctm = ChainTypeManager::new(
             stm_addr,
@@ -115,7 +115,7 @@ impl NetworkVerifier {
         );
         let address = ctm.getHyperchain(U256::from(era_chain_id)).call().await.unwrap()._0;
 
-        Some(address)
+        address
     }   
 
     pub async fn storage_at(

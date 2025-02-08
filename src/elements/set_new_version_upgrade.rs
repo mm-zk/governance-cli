@@ -4,15 +4,15 @@ use alloy::{
     primitives::{Address, FixedBytes, U256},
     sol,
 };
-use chrono::format::Fixed;
-use clap::error;
 
-use crate::{get_expected_new_protocol_version, utils::address_verifier::FixedAddresses};
+use crate::get_expected_new_protocol_version;
 
 use super::{
     post_upgrade_calldata::PostUpgradeCalldata, protocol_version::ProtocolVersion,
-    upgrade_deadline::UpgradeDeadline,
 };
+
+const DEPLOYER_SYSTEM_CONTRACT: u32 = 0x8006;
+const FORCE_DEPLOYER_ADDRESS: u32 = 0x8007;
 
 sol! {
     #[derive(Debug)]
@@ -30,7 +30,6 @@ sol! {
         bytes4[] selectors;
     }
 
-
     #[derive(Debug)]
     struct DiamondCutData {
         FacetCut[] facetCuts;
@@ -38,9 +37,12 @@ sol! {
         bytes initCalldata;
     }
 
-
-    function setNewVersionUpgrade(DiamondCutData diamondCut,uint256 oldProtocolVersion, uint256 oldProtocolVersionDeadline,uint256 newProtocolVersion) {
-    }
+    function setNewVersionUpgrade(
+        DiamondCutData diamondCut,
+        uint256 oldProtocolVersion,
+        uint256 oldProtocolVersionDeadline,
+        uint256 newProtocolVersion
+    );
 
     #[derive(Debug)]
     struct VerifierParams {
@@ -94,17 +96,16 @@ sol! {
 
     #[derive(Debug)]
     function upgrade(ProposedUpgrade calldata _proposedUpgrade) {
-
+        // Implementation omitted.
     }
 
     #[sol(rpc)]
     contract BytecodesSupplier {
         mapping(bytes32 bytecodeHash => uint256 blockNumber) public publishingBlock;
     }
-
 }
 
-impl upgradeCall {}
+impl upgradeCall {} // Placeholder implementation.
 
 const EXPECTED_BYTECODES: [&str; 41] = [
     "CodeOracle.yul",
@@ -151,7 +152,6 @@ const EXPECTED_BYTECODES: [&str; 41] = [
 ];
 
 impl ProposedUpgrade {
-
     pub async fn verify_transaction(
         &self,
         verifiers: &crate::traits::Verifiers,
@@ -160,14 +160,14 @@ impl ProposedUpgrade {
         bytecodes_supplier_addr: Address,
     ) -> anyhow::Result<()> {
         let tx = &self.l2ProtocolUpgradeTx;
+
         if tx.txType != U256::from(254) {
             result.report_error("Invalid txType");
         }
-
-        if tx.from != U256::from(FixedAddresses::ForceDeployer as u64) {
+        if tx.from != U256::from(FORCE_DEPLOYER_ADDRESS) {
             result.report_error("Invalid from");
         }
-        if tx.to != U256::from(FixedAddresses::DeployerSystemContract as u64) {
+        if tx.to != U256::from(DEPLOYER_SYSTEM_CONTRACT) {
             result.report_error("Invalid to");
         }
         if tx.gasLimit != U256::from(72_000_000) {
@@ -176,80 +176,85 @@ impl ProposedUpgrade {
         if tx.gasPerPubdataByteLimit != U256::from(800) {
             result.report_error("Invalid gasPerPubdataByteLimit");
         }
-        if tx.maxFeePerGas != U256::from(0) {
+        if tx.maxFeePerGas != U256::ZERO {
             result.report_error("Invalid maxFeePerGas");
         }
-        if tx.maxPriorityFeePerGas != U256::from(0) {
+        if tx.maxPriorityFeePerGas != U256::ZERO {
             result.report_error("Invalid maxPriorityFeePerGas");
         }
-        if tx.paymaster != U256::from(0) {
+        if tx.paymaster != U256::ZERO {
             result.report_error("Invalid paymaster");
         }
         if tx.nonce != U256::from(expected_version.minor) {
-            result.report_error("Minor protocol version");
+            result.report_error("Minor protocol version mismatch");
         }
-        if tx.value != U256::from(0) {
+        if tx.value != U256::ZERO {
             result.report_error("Invalid value");
         }
-        if tx.reserved != [U256::from(0); 4] {
+        if tx.reserved != [U256::ZERO; 4] {
             result.report_error("Invalid reserved");
         }
-        if tx.data.len() != 0 {
+        if !tx.data.is_empty() {
             result.report_error("Invalid data");
         }
-        if tx.signature.len() != 0 {
+        if !tx.signature.is_empty() {
             result.report_error("Invalid signature");
         }
-        
-        // Factory deps are checked later
-
-        if tx.paymasterInput.len() != 0 {
+        if !tx.paymasterInput.is_empty() {
             result.report_error("Invalid paymasterInput");
         }
-        if tx.reservedDynamic.len() != 0 {
+        if !tx.reservedDynamic.is_empty() {
             result.report_error("Invalid reservedDynamic");
         }
 
-        let bytecodes_supplier = BytecodesSupplier::new(
-            bytecodes_supplier_addr,
-            verifiers.network_verifier.get_l1_provider().unwrap()
-        );
+        let l1_provider = verifiers
+            .network_verifier
+            .get_l1_provider()
+            .ok_or_else(|| anyhow::anyhow!("L1 provider is not available"))?;
+        let bytecodes_supplier = BytecodesSupplier::new(bytecodes_supplier_addr, l1_provider);
 
-        let deps = tx
+        let deps: Vec<FixedBytes<32>> = tx
             .factoryDeps
             .iter()
             .map(|dep| FixedBytes::<32>::from_slice(&dep.to_be_bytes::<32>()))
-            .collect::<Vec<_>>();
+            .collect();
 
-        let mut expected_bytecodes: HashSet<&str> = EXPECTED_BYTECODES.into();
+        // Use iter().copied() to initialize the HashSet.
+        let mut expected_bytecodes: HashSet<&str> = EXPECTED_BYTECODES.iter().copied().collect();
 
         for dep in deps {
-            let Some(file_name) = verifiers.bytecode_verifier.zk_bytecode_hash_to_file(&dep) else {
-                result.report_error(&format!(
-                    "Invalid dependency in factory deps - cannot find file for hash: {:?}",
-                    dep
-                ));
-                continue;
+            let file_name = match verifiers.bytecode_verifier.zk_bytecode_hash_to_file(&dep) {
+                Some(file) => file,
+                None => {
+                    result.report_error(&format!(
+                        "Invalid dependency in factory deps – cannot find file for hash: {:?}",
+                        dep
+                    ));
+                    continue;
+                }
             };
 
-            if !expected_bytecodes.contains(&file_name.as_str()) {
+            if !expected_bytecodes.contains(file_name.as_str()) {
                 result.report_error(&format!(
                     "Unexpected dependency in factory deps: {}",
                     file_name
                 ));
                 continue;
-            } 
-                
-            expected_bytecodes.remove(&file_name.as_str());
-
-            // We also need to check that the dependency has been published.
-            let publishing_block = bytecodes_supplier.publishingBlock(dep).call().await.unwrap().blockNumber;
-            if publishing_block == U256::ZERO {
-                result.report_error(&format!("Unpublished bytecode for {file_name}"));
             }
-            
+
+            expected_bytecodes.remove(file_name.as_str());
+
+            // Check that the dependency has been published.
+            let publishing_info = bytecodes_supplier
+                .publishingBlock(dep)
+                .call()
+                .await
+                .map_err(|e| anyhow::anyhow!("Error calling publishingBlock: {:?}", e))?;
+            if publishing_info.blockNumber == U256::ZERO {
+                result.report_error(&format!("Unpublished bytecode for {}", file_name));
+            }
         }
-        if expected_bytecodes.len() > 0 {
+        if !expected_bytecodes.is_empty() {
             result.report_error(&format!(
                 "Missing dependencies in factory deps: {:?}",
                 expected_bytecodes
@@ -263,15 +268,15 @@ impl ProposedUpgrade {
         &self,
         verifiers: &crate::traits::Verifiers,
         result: &mut crate::traits::VerificationResult,
-        bytecodes_supplier_addr: Address
+        bytecodes_supplier_addr: Address,
     ) -> anyhow::Result<()> {
         result.print_info("== checking chain upgrade init calldata ===");
 
         let expected_version = get_expected_new_protocol_version();
-        
-        let error_count_initial = result.errors;
+        let initial_error_count = result.errors;
 
-        self.verify_transaction(verifiers, result, expected_version, bytecodes_supplier_addr).await?;
+        self.verify_transaction(verifiers, result, expected_version, bytecodes_supplier_addr)
+            .await?;
 
         result.expect_zk_bytecode(verifiers, &self.bootloaderHash, "proved_batch.yul");
         result.expect_zk_bytecode(
@@ -280,15 +285,14 @@ impl ProposedUpgrade {
             "system-contracts/DefaultAccount",
         );
 
-        let verifier = verifiers
+        let verifier_name = verifiers
             .address_verifier
             .address_to_name
             .get(&self.verifier)
-            .unwrap_or(&format!("Unknown: {}", self.verifier))
-            .clone();
-
-        if verifier != "verifier" {
-            result.report_error(&format!("Invalid verifier: {}", verifier));
+            .cloned()
+            .unwrap_or_else(|| format!("Unknown: {}", self.verifier));
+        if verifier_name != "verifier" {
+            result.report_error(&format!("Invalid verifier: {}", verifier_name));
         }
 
         // Verifier params should be zero - as everything is hardcoded within the verifier contract itself.
@@ -299,28 +303,32 @@ impl ProposedUpgrade {
             result.report_error("Verifier params must be empty.");
         }
 
-        if self.l1ContractsUpgradeCalldata.len() > 0 {
+        if !self.l1ContractsUpgradeCalldata.is_empty() {
             result.report_error("l1ContractsUpgradeCalldata is not empty");
         }
 
-        let post_upgrade_calldata = PostUpgradeCalldata::parse(&self.postUpgradeCalldata);
+        let post_upgrade_calldata = PostUpgradeCalldata::parse(&self.postUpgradeCalldata)?;
         post_upgrade_calldata.verify(verifiers, result).await?;
 
-        let upgrade_timestamp = self.upgradeTimestamp;
-        if upgrade_timestamp != U256::default() {
+        if self.upgradeTimestamp != U256::default() {
             result.report_error("Upgrade timestamp must be zero");
         }
-        
-        let pv = ProtocolVersion::from(self.newProtocolVersion);
-        if pv != expected_version {
-            result.report_error(&format!("Invalid protocol version: {}. Expected: {}", pv.to_string(), expected_version.to_string()));
+
+        let protocol_version = ProtocolVersion::from(self.newProtocolVersion);
+        if protocol_version != expected_version {
+            result.report_error(&format!(
+                "Invalid protocol version: {}. Expected: {}",
+                protocol_version, expected_version
+            ));
         }
 
-        if error_count_initial == result.errors {
+        if initial_error_count == result.errors {
             result.report_ok("Proposed upgrade info is correct");
         } else {
-            assert!(error_count_initial <= result.errors, "Errors can not be erased");
-            anyhow::bail!("{} erorrs found in the upgrade information", result.errors - error_count_initial);
+            anyhow::bail!(
+                "{} errors found in the upgrade information",
+                result.errors - initial_error_count
+            );
         }
 
         Ok(())
