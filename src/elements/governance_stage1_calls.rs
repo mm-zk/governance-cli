@@ -3,10 +3,7 @@ use std::str::FromStr;
 use alloy::{primitives::{Address, U256}, sol, sol_types::SolCall};
 
 use crate::{
-    elements::{
-        protocol_version::ProtocolVersion, set_new_version_upgrade::upgradeCall,
-        upgrade_deadline::UpgradeDeadline,
-    },
+    elements::set_new_version_upgrade::upgradeCall,
     utils::facet_cut_set::{self, FacetCutSet, FacetInfo},
 };
 
@@ -146,15 +143,6 @@ impl GovernanceStage1Calls {
         if data.oldProtocolVersionDeadline != U256::MAX {
             result.report_error("Wrong old protocol version deadline for stage1 call");
         }
-        let deadline = UpgradeDeadline {
-            deadline: data.oldProtocolVersionDeadline,
-        };
-        let old_protocol_version: ProtocolVersion = data.oldProtocolVersion.into();
-        let new_protocol_version: ProtocolVersion = data.newProtocolVersion.into();
-        result.print_info(&format!(
-            "Protocol versions: from: {} to: {} deadline: {}",
-            old_protocol_version, new_protocol_version, deadline
-        ));
 
         let diamond_cut = data.diamondCut;
 
