@@ -7,7 +7,7 @@ use crate::{
         protocol_version::ProtocolVersion, set_new_version_upgrade::upgradeCall,
         upgrade_deadline::UpgradeDeadline,
     },
-    utils::facet_cut_set::{self, FacetCutSet},
+    utils::facet_cut_set::{self, FacetCutSet, FacetInfo},
 };
 
 use super::{
@@ -80,8 +80,12 @@ async fn verity_facet_cuts(
             set_new_version_upgrade::Action::__Invalid => panic!("Invalid unexpected")
         };
 
-        proposed_facet_cuts.add_facet(facet.facet, facet.isFreezable, action);
-        facet.selectors.iter().for_each(|selector| proposed_facet_cuts.add_selector(facet.facet, selector.0));
+        proposed_facet_cuts.add_facet(FacetInfo {
+            facet: facet.facet,
+            action,
+            is_freezable: facet.isFreezable,
+            selectors:  facet.selectors.iter().map(|x| x.0).collect()
+        });
     });
 
     if proposed_facet_cuts != expected_upgrade_facets {

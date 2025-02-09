@@ -1,8 +1,10 @@
 use alloy::primitives::Address;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::cmp::Ordering;
+use std::ops::Add;
+use std::hash::{Hash, Hasher};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Action {
     Add,
     Replace,
@@ -11,14 +13,32 @@ pub enum Action {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FacetInfo {
-    action: Action,
-    is_freezable: bool,
-    selectors: HashSet<[u8; 4]>,
+    pub(crate) facet: Address,
+    pub(crate) action: Action,
+    pub(crate) is_freezable: bool,
+    pub(crate) selectors: HashSet<[u8; 4]>,
+}
+
+impl Hash for FacetInfo {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Hash the fields that are already in a deterministic order.
+        self.facet.hash(state);
+        self.action.hash(state);
+        self.is_freezable.hash(state);
+
+        // For the selectors (a HashSet), sort them first so that the order is deterministic.
+        // Note: [u8; 4] implements Ord, so sorting is available.
+        let mut selectors: Vec<&[u8; 4]> = self.selectors.iter().collect();
+        selectors.sort();
+        for selector in selectors {
+            selector.hash(state);
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq)]
 pub struct FacetCutSet {
-    facets: HashMap<Address, FacetInfo>,
+    facets: HashSet<FacetInfo>,
 }
 
 impl PartialEq for FacetCutSet {
@@ -30,44 +50,19 @@ impl PartialEq for FacetCutSet {
 impl FacetCutSet {
     pub fn new() -> Self {
         Self {
-            facets: HashMap::new(),
+            facets: HashSet::new(),
         }
     }
 
-    pub fn add_facet(&mut self, address: Address, is_freezable: bool, action: Action) {
+    pub fn add_facet(&mut self, facet: FacetInfo) {
         self.facets.insert(
-            address,
-            FacetInfo {
-                action,
-                is_freezable,
-                selectors: HashSet::new(),
-            },
+            facet
         );
     }
 
-    pub fn add_selector(&mut self, address: Address, selector: [u8; 4]) {
-        if let Some(facet) = self.facets.get_mut(&address) {
-            facet.selectors.insert(selector);
-        } else {
-            panic!("Facet at address {:?} not found", address);
-        }
-    }
-
     pub fn merge(mut self, another_set: FacetCutSet) -> Self {
-        for (address, new_facet) in another_set.facets {
-            if let Some(existing_facet) = self.facets.get(&address) {
-                if existing_facet.action != new_facet.action || existing_facet.is_freezable != new_facet.is_freezable {
-                    panic!(
-                        "Conflict while merging: address {:?} has different action or freezability",
-                        address
-                    );
-                }
-                let mut merged_facet = existing_facet.clone();
-                merged_facet.selectors.extend(new_facet.selectors);
-                self.facets.insert(address, merged_facet);
-            } else {
-                self.facets.insert(address, new_facet);
-            }
+        for new_facet in another_set.facets {
+            self.facets.insert(new_facet);
         }
 
         self

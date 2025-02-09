@@ -1,5 +1,5 @@
 use crate::{
-    elements::initialize_data_new_chain::InitializeDataNewChain, get_expected_old_protocol_version, utils::{compute_selector, facet_cut_set::{self, FacetCutSet}}, verifiers::Verifiers
+    elements::initialize_data_new_chain::InitializeDataNewChain, get_expected_old_protocol_version, utils::{compute_selector, facet_cut_set::{self, FacetCutSet, FacetInfo}}, verifiers::Verifiers
 };
 use alloy::{
     hex, primitives::U256, sol,
@@ -333,7 +333,12 @@ pub async fn verify_chain_creation_diamond_cut(
                 continue;
             }
         };
-        proposed_facet_cut.add_facet(facet.facet, facet.isFreezable, action);
+        proposed_facet_cut.add_facet(FacetInfo {
+            facet: facet.facet, 
+            action,
+            is_freezable: facet.isFreezable,
+            selectors: facet.selectors.iter().map(|x| x.0).collect() 
+        });
     }
 
     if expected_chain_creation_facets != proposed_facet_cut {

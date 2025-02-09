@@ -12,11 +12,18 @@ use super::{
 // https://www.notion.so/matterlabs/Upgrade-steps-17aa48363f2380688151e547192e3b79?pvs=4#17aa48363f2380e99862d11605517d54
 const FEE_PARAM_STORAGE_SLOT: u8 = 38u8;
 
-// FIXME: needs a review from me.
-
 #[derive(PartialEq, Eq)]
 pub struct FeeParamVerifier {
     pub fee_params: FeeParams,
+}
+
+fn expand_to_word(slice: &[u8]) -> Vec<u8> {
+    assert!(slice.len() <= 32);
+
+    let mut result = vec![0u8; 32];
+    result[32 - slice.len()..32].copy_from_slice(slice);
+
+    result
 }
 
 impl FeeParamVerifier {
@@ -64,7 +71,14 @@ impl FeeParamVerifier {
             .get_storage_at(diamond_proxy_address, FEE_PARAM_STORAGE_SLOT)
             .await;
 
-        FeeParams::abi_decode(&value.0, true).expect("Failed to decode onchain fee params")
+        FeeParams {
+            pubdataPricingMode: PubdataPricingMode::abi_decode(&expand_to_word(&value.0[31..32]), true).unwrap(),
+            batchOverheadL1Gas: u32::abi_decode(&expand_to_word(&value.0[27..31]), true).unwrap(),
+            maxPubdataPerBatch: u32::abi_decode(&expand_to_word(&value.0[23..27]), true).unwrap(),
+            maxL2GasPerBatch: u32::abi_decode(&expand_to_word(&value.0[19..23]), true).unwrap(),
+            priorityTxMaxPubdata: u32::abi_decode(&expand_to_word(&value.0[15..19]), true).unwrap(),
+            minimalL2GasPrice: u64::abi_decode(&expand_to_word(&value.0[7..15]), true).unwrap(),
+        }
     }
 }
 

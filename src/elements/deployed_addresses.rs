@@ -4,7 +4,7 @@ use anyhow::{Context, ensure, Result};
 use crate::{
     utils::{
         address_verifier::AddressVerifier,
-        facet_cut_set::{self, FacetCutSet},
+        facet_cut_set::{self, FacetCutSet, FacetInfo},
         network_verifier::BridgehubInfo,
     },
     UpgradeOutput,
@@ -833,10 +833,13 @@ impl DeployedAddresses {
         );
         let current_facets = getters_facet.facets().call().await?.result;
         for f in current_facets {
-            facets_to_remove.add_facet(f.addr, false, facet_cut_set::Action::Remove);
-            for selector in f.selectors {
-                facets_to_remove.add_selector(f.addr, selector.0);
-            }
+            // Note, that when deleting facets, their address must be provided as zero.
+            facets_to_remove.add_facet(FacetInfo {
+                facet: Address::ZERO,
+                is_freezable: false,
+                action:  facet_cut_set::Action::Remove,
+                selectors: f.selectors.iter().map(|x| x.0).collect()
+            });
         }
 
         let mut facets_to_add = FacetCutSet::new();
@@ -860,11 +863,16 @@ impl DeployedAddresses {
             .unwrap()
             .into_iter()
             .map(|f| f.selector)
+            // We filter out the selector for `getName()` which is equal to 0x17d7de7c.
+            .filter(|selector| selector != &[0x17, 0xd7, 0xde, 0x7c])
             .collect();
-            facets_to_add.add_facet(address, facet.is_freezable, facet_cut_set::Action::Add);
-            for selector in info {
-                facets_to_add.add_selector(address, selector);
-            }
+
+            facets_to_add.add_facet(FacetInfo {
+                facet: address,
+                is_freezable: facet.is_freezable,
+                action: facet_cut_set::Action::Add,
+                selectors: info.into_iter().collect()
+            });
         }
         Ok((facets_to_remove, facets_to_add))
     }

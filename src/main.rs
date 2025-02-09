@@ -246,7 +246,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ),"l2_shared_bridge_legacy_impl");
     verifiers.address_verifier.add_address(compute_expected_address_for_file(
         &verifiers,
-        "l1-contracts/L2SharedBrBridgedStandardERC20idgeLegacy",
+        "l1-contracts/BridgedStandardERC20",
     ),"erc20_bridged_standard");
 
     config.add_to_verifier(&mut verifiers.address_verifier);
