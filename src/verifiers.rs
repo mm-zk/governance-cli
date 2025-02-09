@@ -14,7 +14,7 @@ use crate::utils::{
     bytecode_verifier::BytecodeVerifier,
     fee_param_verifier::FeeParamVerifier,
     get_contents_from_github,
-    network_verifier::{self, NetworkVerifier},
+    network_verifier::NetworkVerifier,
 };
 
 sol! {

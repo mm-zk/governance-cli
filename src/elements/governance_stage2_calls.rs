@@ -248,6 +248,15 @@ impl GovernanceStage2Calls {
             }
         }
 
+        self.verify_upgrade_call(
+            verifiers,
+            result,
+            &self.calls.elems[10],
+            "protocol_upgrade_handler_proxy",
+            "new_protocol_upgrade_handler_impl",
+            Some(""),
+        )?;
+
         Ok(())
     }
 }

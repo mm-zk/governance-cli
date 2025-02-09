@@ -4,7 +4,7 @@ use alloy::{
 };
 use serde::Deserialize;
 use std::{fmt::Debug, fs, str::FromStr};
-use verifiers::{GenesisConfig, VerificationResult, Verifiers};
+use verifiers::{VerificationResult, Verifiers};
 use utils::{address_verifier::AddressVerifier, apply_l2_to_l1_alias};
 
 mod elements;
@@ -32,27 +32,22 @@ pub(crate) fn get_expected_old_protocol_version() -> ProtocolVersion {
 
 #[derive(Debug, Deserialize)]
 struct UpgradeOutput {
-    // FIXME: maybe we can read `address`/`bytes` rightaway?
-    // FIXME: maybe remove dead code?
-    // FIXME: why do we even have dead code? Maybe we should verify every field?
-
-    #[allow(dead_code)]
+    // TODO: potentially verify this array.
+    // It does not affect the upgrade, but it could be cross-checked for correctness.
     chain_upgrade_diamond_cut: String,
+    create2_factory_addr: Address,
+    create2_factory_salt: FixedBytes<32>,
+    deployer_addr: Address,
     pub(crate) era_chain_id: u64,
-    pub(crate) l1_chain_id: u64,
     governance_stage1_calls: String,
     governance_stage2_calls: String,
+    pub(crate) l1_chain_id: u64,
 
-    deployed_addresses: DeployedAddresses,
+    protocol_upgrade_handler_proxy_address: Address,
+    protocol_upgrade_handler_impl_address: Address,
+
     contracts_config: ContractsConfig,
-
-    create2_factory_addr: Address,
-    #[allow(dead_code)]
-    create2_factory_salt: String,
-    #[allow(dead_code)]
-    deployer_addr: String,
-
-    protocol_upgrade_handler_proxy_address: String,
+    deployed_addresses: DeployedAddresses,
 
     transactions: Vec<String>,
 }
@@ -83,7 +78,7 @@ impl UpgradeOutput {
 
         // Check that addresses actually contain correct bytecodes.
         self.deployed_addresses.verify(&self, verifiers, result).await?;
-        let (facets_to_remove, facets_to_add) = self.deployed_addresses.get_expected_facet_cuts(&self, verifiers).await?;
+        let (facets_to_remove, facets_to_add) = self.deployed_addresses.get_expected_facet_cuts(verifiers).await?;
 
         result
             .expect_deployed_bytecode(verifiers, &self.create2_factory_addr, "Create2Factory")
@@ -106,10 +101,11 @@ impl UpgradeOutput {
 
 #[derive(Debug, Deserialize)]
 struct ContractsConfig {
-    #[allow(dead_code)]
-    expected_rollup_l2_da_validator: String,
-    #[allow(dead_code)]
-    priority_tx_max_gas_limit: u32,
+    expected_rollup_l2_da_validator: Address,
+
+    // TODO: double check the correctness of the rest of the fields. 
+    // These do not impact the correctness of the upgrade, but could assist to ensure no errors 
+    // for chain operations.
 }
 
 pub fn address_eq(address: &Address, addr_string: &str) -> bool {
@@ -185,7 +181,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .check_create2_deploy(
                 &transaction,
                 &config.create2_factory_addr,
-                &FixedBytes::<32>::from_hex(&config.create2_factory_salt).unwrap(),
+                &config.create2_factory_salt,
                 &verifiers
                 .bytecode_verifier
             )
@@ -234,12 +230,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "TransparentProxyAdmin".to_string(),
     );
 
-    let protocol_upgrade_handler_proxy_address = Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap();
+    // let protocol_upgrade_handler_proxy_address = Address::from_str(&config.protocol_upgrade_handler_proxy_address).unwrap();
 
     let mut result = VerificationResult::default();
 
-    verifiers.address_verifier.add_address(protocol_upgrade_handler_proxy_address, "protocol_upgrade_handler_proxy");
-    verifiers.address_verifier.add_address(apply_l2_to_l1_alias(protocol_upgrade_handler_proxy_address), "aliased_protocol_upgrade_handler_proxy");
+    verifiers.address_verifier.add_address(config.protocol_upgrade_handler_impl_address, "new_protocol_upgrade_handler_impl");
+    verifiers.address_verifier.add_address(config.protocol_upgrade_handler_proxy_address, "protocol_upgrade_handler_proxy");
+    verifiers.address_verifier.add_address(apply_l2_to_l1_alias(config.protocol_upgrade_handler_proxy_address), "aliased_protocol_upgrade_handler_proxy");
     verifiers.address_verifier.add_address(compute_expected_address_for_file(
         &verifiers,
         "l1-contracts/L2SharedBridgeLegacy",
@@ -250,7 +247,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ),"erc20_bridged_standard");
 
     config.add_to_verifier(&mut verifiers.address_verifier);
-    verifiers.address_verifier.add_address(verifiers.network_verifier.get_proxy_admin(protocol_upgrade_handler_proxy_address).await, "protocol_upgrade_handler_transparent_proxy_admin");
+    verifiers.address_verifier.add_address(verifiers.network_verifier.get_proxy_admin(config.protocol_upgrade_handler_proxy_address).await, "protocol_upgrade_handler_transparent_proxy_admin");
     verifiers
         .append_addresses()
         .await

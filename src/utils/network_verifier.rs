@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use alloy::consensus::Transaction;
 use alloy::hex::FromHex;
 use alloy::primitives::map::HashMap;
@@ -45,7 +47,8 @@ pub struct BridgehubInfo {
     pub transparent_proxy_admin: Address,
     pub l1_weth_token_address: Address,
     pub ecosystem_admin: Address,
-    pub bridgehub_addr: Address
+    pub bridgehub_addr: Address,
+    pub era_address: Address
 }
 
 pub struct NetworkVerifier {
@@ -153,6 +156,8 @@ impl NetworkVerifier {
                     .await
                     .unwrap()
                     ._0;
+        let chain_type_manager = ChainTypeManager::new(stm_address, provider.clone());
+        let era_address = chain_type_manager.getHyperchain(U256::from(era_chain_id)).call().await.unwrap()._0;
 
         let ecosystem_admin = bridgehub.admin().call().await.unwrap().admin;
 
@@ -168,7 +173,8 @@ impl NetworkVerifier {
             transparent_proxy_admin,
             l1_weth_token_address,
             ecosystem_admin,
-            bridgehub_addr
+            bridgehub_addr,
+            era_address
         }
     }
 
