@@ -174,13 +174,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         args.era_chain_id
     ).await;
 
-    if verifiers.testnet_contracts {
-        let chain_id = verifiers.network_verifier.get_l1_chain_id().await;
-        if chain_id == 1 {
-            panic!("Testnet contracts are not expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
-        }
-    }
-
     println!(
         "Adding {} transactions from create2",
         config.transactions.len()

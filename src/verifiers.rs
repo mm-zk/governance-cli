@@ -42,8 +42,13 @@ impl Verifiers {
         l1_rpc: String,
         era_chain_id: u64,
     ) -> Self {
-        let bridgehub_address = Address::from_hex(bridgehub_address.as_ref()).expect("Bridgehub address");
         let network_verifier = NetworkVerifier::new(l1_rpc, era_chain_id);
+
+        if testnet_contracts && network_verifier.get_l1_chain_id().await == 1 {
+            panic!("Testnet contracts are not expected to be deployed on L1 mainnet - you passed --testnet-contracts flag.");
+        }
+
+        let bridgehub_address = Address::from_hex(bridgehub_address.as_ref()).expect("Bridgehub address");
         let fee_param_verifier =  FeeParamVerifier::safe_init(&bridgehub_address, &network_verifier, contracts_commit).await;
         Self {
             testnet_contracts,
