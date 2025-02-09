@@ -43,3 +43,7 @@ In case of the v26 upgrade, the above applies to the following contracts:
 - `L1AssetRouter` (`shared_bridge_proxy_addr`)
 - `L1NativeTokenVault` (`native_token_vault_addr`)
 - `RollupDAManager` (`l1_rollup_da_manager`)
+
+### Checks for the new implementation of ProtocolUpgradeHandler
+
+The tool will check that the immutable variables that are derived from the constructor args are correct. However, the new implementaiton is not a part of the `era-contracts` repo and so it will have to be manually checked to be equal to the bytecode from the [`zk-governance`](https://github.com/zksync-association/zk-governance) repo.
