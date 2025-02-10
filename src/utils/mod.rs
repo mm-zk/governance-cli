@@ -1,16 +1,14 @@
 use std::{
-    fs::{self, File},
-    io::Write,
-    path::Path,
+    fs::{self, File}, io::Write, path::Path
 };
 
-use alloy::primitives::{keccak256, Address, Bytes, FixedBytes};
+use alloy::{hex, primitives::{keccak256, Address, Bytes, FixedBytes, Keccak256, U160}};
 
 pub mod address_verifier;
 pub mod bytecode_verifier;
 pub mod fee_param_verifier;
 pub mod network_verifier;
-pub mod selector_verifier;
+pub mod facet_cut_set;
 
 pub async fn get_contents_from_github(commit: &str, repo: &str, file_path: &str) -> String {
     let url = format!(
@@ -89,4 +87,22 @@ pub fn compute_hash_with_arguments(
     } else {
         Some(keccak256(&input[0..input.len() - 32 * num_arguments]))
     }
+}
+
+pub fn apply_l2_to_l1_alias(addr: Address) -> Address {
+    let offset = U160::from_str_radix("1111000000000000000000000000000000001111", 16).unwrap();
+
+    let addr_as_u256 = U160::from_be_bytes(addr.0.0);
+
+    let result = offset + addr_as_u256;
+
+    Address(FixedBytes::<20>(result.to_be_bytes()))
+}
+
+pub fn compute_selector(method_name: &str) -> String {
+    let mut hasher = Keccak256::new();
+    hasher.update(method_name.as_bytes());
+    let result = hasher.finalize();
+
+    hex::encode(&result[..4])
 }

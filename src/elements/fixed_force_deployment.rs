@@ -3,6 +3,8 @@ use alloy::{
     sol,
 };
 
+use crate::MAX_NUMBER_OF_ZK_CHAINS;
+
 sol! {
     #[derive(Debug)]
     struct FixedForceDeploymentsData {
@@ -28,82 +30,70 @@ sol! {
 impl FixedForceDeploymentsData {
     pub async fn verify(
         &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
     ) -> anyhow::Result<()> {
-        match verifiers.network_verifier.get_l2_chain_id().await {
-            Some(era_chain_id) => {
-                if U256::from(era_chain_id) != self.eraChainId {
-                    result.report_error(&format!(
-                        "Era chain id mismatch: expected {}, got {}",
-                        self.eraChainId, era_chain_id
-                    ));
-                }
-            }
-            None => {
-                result.report_warn("Era chain id not verified");
-            }
+        let expected_l1_chain_id = verifiers.network_verifier.get_l1_chain_id().await;
+        if U256::from(expected_l1_chain_id) != self.l1ChainId {
+            result.report_error(&format!(
+                "L1 chain id mismatch: expected {}, got {}",
+                expected_l1_chain_id, self.l1ChainId, 
+            ));
         }
 
-        match verifiers.network_verifier.get_l1_chain_id().await {
-            Some(l1_chain_id) => {
-                if U256::from(l1_chain_id) != self.l1ChainId {
-                    result.report_error(&format!(
-                        "L1 chain id mismatch: expected {}, got {}",
-                        self.l1ChainId, l1_chain_id
-                    ));
-                }
-            }
-            None => {
-                result.report_warn("L1 chain id not verified");
-            }
+        let era_chain_id = verifiers.network_verifier.get_era_chain_id().await;
+        if U256::from(era_chain_id) != self.eraChainId {
+            result.report_error(&format!(
+                "Era chain id mismatch: expected {}, got {}",
+                era_chain_id, self.eraChainId 
+            ));
         }
 
-        result.expect_address(verifiers, &self.l1AssetRouter, "shared_bridge_proxy");
-        result.expect_bytecode(
+        result.expect_address(verifiers, &self.l1AssetRouter, "l1_asset_router_proxy");
+        result.expect_zk_bytecode(
             verifiers,
             &self.l2TokenProxyBytecodeHash,
             "l1-contracts/BeaconProxy",
         );
-        //result.expect_address(verifiers, &self.aliasedL1Governance, "aliased_governance");
+        result.expect_address(verifiers, &self.aliasedL1Governance, "aliased_protocol_upgrade_handler_proxy");
 
-        if self.maxNumberOfZKChains != U256::from(100) {
+        if self.maxNumberOfZKChains != U256::from(MAX_NUMBER_OF_ZK_CHAINS) {
             result.report_error("maxNumberOfZKChains must be 100");
         }
 
-        result.expect_bytecode(
+        result.expect_zk_bytecode(
             verifiers,
             &self.bridgehubBytecodeHash,
             "l1-contracts/Bridgehub",
         );
-        result.expect_bytecode(
+        result.expect_zk_bytecode(
             verifiers,
             &self.l2AssetRouterBytecodeHash,
             "l1-contracts/L2AssetRouter",
         );
-        result.expect_bytecode(
+        result.expect_zk_bytecode(
             verifiers,
             &self.l2NtvBytecodeHash,
             "l1-contracts/L2NativeTokenVault",
         );
 
-        result.expect_bytecode(
+        result.expect_zk_bytecode(
             verifiers,
             &self.messageRootBytecodeHash,
             "l1-contracts/MessageRoot",
         );
 
-        /*result.expect_address(
+        result.expect_address(
             verifiers,
             &self.l2SharedBridgeLegacyImpl,
-            "shared_bridge_legacy_impl",
-        );*/
+            "l2_shared_bridge_legacy_impl",
+        );
 
-        /*result.expect_address(
+        result.expect_address(
             verifiers,
             &self.l2BridgedStandardERC20Impl,
             "erc20_bridged_standard",
-        );*/
+        );
 
         if self.dangerousTestOnlyForcedBeacon != Address::ZERO {
             result.report_error("dangerousTestOnlyForcedBeacon must be 0");

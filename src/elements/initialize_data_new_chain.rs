@@ -3,14 +3,14 @@ use std::fmt::Display;
 use alloy::{primitives::U256, sol};
 
 sol! {
-    #[derive(Debug, Default, PartialEq)]
+    #[derive(Debug, Default, PartialEq, Eq)]
     enum PubdataPricingMode {
         #[default]
         Rollup,
         Validium
     }
 
-    #[derive(Debug, Default)]
+    #[derive(Debug, Default, PartialEq, Eq)]
     struct FeeParams {
         PubdataPricingMode pubdataPricingMode;
         uint32 batchOverheadL1Gas;
@@ -39,8 +39,8 @@ sol! {
 impl InitializeDataNewChain {
     pub async fn verify(
         &self,
-        verifiers: &crate::traits::Verifiers,
-        result: &mut crate::traits::VerificationResult,
+        verifiers: &crate::verifiers::Verifiers,
+        result: &mut crate::verifiers::VerificationResult,
     ) -> anyhow::Result<()> {
         result.print_info("== checking initialize data ===");
 
@@ -52,12 +52,12 @@ impl InitializeDataNewChain {
             result.report_error("Verifier params must be empty.");
         }
 
-        result.expect_bytecode(
+        result.expect_zk_bytecode(
             verifiers,
             &self.l2BootloaderBytecodeHash,
             "proved_batch.yul",
         );
-        result.expect_bytecode(
+        result.expect_zk_bytecode(
             verifiers,
             &self.l2DefaultAccountBytecodeHash,
             "system-contracts/DefaultAccount",
@@ -70,181 +70,15 @@ impl InitializeDataNewChain {
             ));
         }
 
-        // verify FeeParams sanity.
-
-        // First check file based FeeParams
-        let file_based_fee_params = &verifiers.fee_param_verifier.file_based_fee_params;
-
-        if self.feeParams.pubdataPricingMode != file_based_fee_params.pubdataPricingMode {
+        if self.feeParams != verifiers.fee_param_verifier.fee_params {
             result.report_error(&format!(
-                "File Based FeeParams - {} - Expected {}, got {}",
-                "pubdataPricingMode",
-                file_based_fee_params.pubdataPricingMode,
-                self.feeParams.pubdataPricingMode
+                "Incorrect fee params. Expected: {:#?}\nReceived: {:#?}",
+                verifiers.fee_param_verifier.fee_params,
+                self.feeParams 
             ));
         } else {
-            result.report_ok(&format!(
-                "File Based FeeParams - {}: {}",
-                "pubdataPricingMode", self.feeParams.pubdataPricingMode
-            ));
+            result.report_ok("Fee params are correct");
         }
-
-        if self.feeParams.batchOverheadL1Gas != file_based_fee_params.batchOverheadL1Gas {
-            result.report_error(&format!(
-                "File Based FeeParams - {} - Expected {}, got {}",
-                "batchOverheadL1Gas",
-                file_based_fee_params.batchOverheadL1Gas,
-                self.feeParams.batchOverheadL1Gas
-            ));
-        } else {
-            result.report_ok(&format!(
-                "File Based FeeParams - {}: {}",
-                "batchOverheadL1Gas", self.feeParams.batchOverheadL1Gas
-            ));
-        }
-
-        if self.feeParams.maxPubdataPerBatch != file_based_fee_params.maxPubdataPerBatch {
-            result.report_error(&format!(
-                "File Based FeeParams - {} - Expected {}, got {}",
-                "maxPubdataPerBatch",
-                file_based_fee_params.maxPubdataPerBatch,
-                self.feeParams.maxPubdataPerBatch
-            ));
-        } else {
-            result.report_ok(&format!(
-                "File Based FeeParams - {}: {}",
-                "maxPubdataPerBatch", self.feeParams.maxPubdataPerBatch
-            ));
-        }
-
-        if self.feeParams.maxL2GasPerBatch != file_based_fee_params.maxL2GasPerBatch {
-            result.report_error(&format!(
-                "File Based FeeParams - {} - Expected {}, got {}",
-                "maxL2GasPerBatch",
-                file_based_fee_params.maxL2GasPerBatch,
-                self.feeParams.maxL2GasPerBatch
-            ));
-        } else {
-            result.report_ok(&format!(
-                "File Based FeeParams - {}: {}",
-                "maxL2GasPerBatch", self.feeParams.maxL2GasPerBatch
-            ));
-        }
-
-        if self.feeParams.priorityTxMaxPubdata != file_based_fee_params.priorityTxMaxPubdata {
-            result.report_error(&format!(
-                "File Based FeeParams - {} - Expected {}, got {}",
-                "priorityTxMaxPubdata",
-                file_based_fee_params.priorityTxMaxPubdata,
-                self.feeParams.priorityTxMaxPubdata
-            ));
-        } else {
-            result.report_ok(&format!(
-                "File Based FeeParams - {}: {}",
-                "priorityTxMaxPubdata", self.feeParams.priorityTxMaxPubdata
-            ));
-        }
-
-        if self.feeParams.minimalL2GasPrice != file_based_fee_params.minimalL2GasPrice {
-            result.report_error(&format!(
-                "File Based FeeParams - {} - Expected {}, got {}",
-                "minimalL2GasPrice",
-                file_based_fee_params.minimalL2GasPrice,
-                self.feeParams.minimalL2GasPrice
-            ));
-        } else {
-            result.report_ok(&format!(
-                "File Based FeeParams - {}: {}",
-                "minimalL2GasPrice", self.feeParams.minimalL2GasPrice
-            ));
-        }
-
-        // First check on chain based FeeParams
-        let on_chain_based_fee_params = &verifiers.fee_param_verifier.on_chain_fee_params;
-        if self.feeParams.pubdataPricingMode != on_chain_based_fee_params.pubdataPricingMode {
-            result.report_error(&format!(
-                "On Chain Based FeeParams - {} - Expected {}, got {}",
-                "pubdataPricingMode",
-                on_chain_based_fee_params.pubdataPricingMode,
-                self.feeParams.pubdataPricingMode
-            ));
-        } else {
-            result.report_ok(&format!(
-                "On Chain Based FeeParams - {}: {}",
-                "pubdataPricingMode", self.feeParams.pubdataPricingMode
-            ));
-        }
-
-        if self.feeParams.batchOverheadL1Gas != on_chain_based_fee_params.batchOverheadL1Gas {
-            result.report_error(&format!(
-                "On Chain Based FeeParams - {} - Expected {}, got {}",
-                "batchOverheadL1Gas",
-                on_chain_based_fee_params.batchOverheadL1Gas,
-                self.feeParams.batchOverheadL1Gas
-            ));
-        } else {
-            result.report_ok(&format!(
-                "On Chain Based FeeParams - {}: {}",
-                "batchOverheadL1Gas", self.feeParams.batchOverheadL1Gas
-            ));
-        }
-
-        if self.feeParams.maxPubdataPerBatch != on_chain_based_fee_params.maxPubdataPerBatch {
-            result.report_error(&format!(
-                "On Chain Based FeeParams - {} - Expected {}, got {}",
-                "maxPubdataPerBatch",
-                on_chain_based_fee_params.maxPubdataPerBatch,
-                self.feeParams.maxPubdataPerBatch
-            ));
-        } else {
-            result.report_ok(&format!(
-                "On Chain Based FeeParams - {}: {}",
-                "maxPubdataPerBatch", self.feeParams.maxPubdataPerBatch
-            ));
-        }
-
-        if self.feeParams.maxL2GasPerBatch != on_chain_based_fee_params.maxL2GasPerBatch {
-            result.report_error(&format!(
-                "On Chain Based FeeParams - {} - Expected {}, got {}",
-                "maxL2GasPerBatch",
-                on_chain_based_fee_params.maxL2GasPerBatch,
-                self.feeParams.maxL2GasPerBatch
-            ));
-        } else {
-            result.report_ok(&format!(
-                "On Chain Based FeeParams - {}: {}",
-                "maxL2GasPerBatch", self.feeParams.maxL2GasPerBatch
-            ));
-        }
-
-        if self.feeParams.priorityTxMaxPubdata != on_chain_based_fee_params.priorityTxMaxPubdata {
-            result.report_error(&format!(
-                "On Chain Based FeeParams - {} - Expected {}, got {}",
-                "priorityTxMaxPubdata",
-                on_chain_based_fee_params.priorityTxMaxPubdata,
-                self.feeParams.priorityTxMaxPubdata
-            ));
-        } else {
-            result.report_ok(&format!(
-                "On Chain Based FeeParams - {}: {}",
-                "priorityTxMaxPubdata", self.feeParams.priorityTxMaxPubdata
-            ));
-        }
-
-        if self.feeParams.minimalL2GasPrice != on_chain_based_fee_params.minimalL2GasPrice {
-            result.report_error(&format!(
-                "On Chain Based FeeParams - {} - Expected {}, got {}",
-                "minimalL2GasPrice",
-                on_chain_based_fee_params.minimalL2GasPrice,
-                self.feeParams.minimalL2GasPrice
-            ));
-        } else {
-            result.report_ok(&format!(
-                "On Chain Based FeeParams - {}: {}",
-                "minimalL2GasPrice", self.feeParams.minimalL2GasPrice
-            ));
-        }
-
         Ok(())
     }
 }
